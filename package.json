@@ -1,0 +1,17 @@
+{
+  "name": "siep-bahasa-indonesia",
+  "version": "1.0.0",
+  "description": "Sistem Informasi Evaluasi Pembelajaran Terpadu - bank soal adaptif (CAT) Bahasa Indonesia SMA/SMK dan kuesioner feedback siswa",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "packageManager": "yarn@4.9.2+sha512.1fc009bc09d13cfd0e19efa44cbfc2b9cf6ca61482725eb35bbc5e257e093ebf4130db6dfe15d604ff4b79efd8e1e8e99b25fa7d0a6197c9f9826358d4d65c3c"
+}

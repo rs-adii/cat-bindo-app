@@ -1,0 +1,7 @@
+[
+  { "id": "kejelasan", "label": "Kejelasan Materi", "pernyataan": "Penjelasan materi Bahasa Indonesia yang diberikan guru mudah saya pahami." },
+  { "id": "metode", "label": "Metode Mengajar", "pernyataan": "Guru menggunakan metode mengajar yang membuat saya aktif belajar." },
+  { "id": "media", "label": "Media dan Latihan", "pernyataan": "Media dan latihan soal yang digunakan membantu saya memahami materi." },
+  { "id": "suasana", "label": "Suasana Kelas", "pernyataan": "Saya merasa nyaman bertanya dan berpendapat selama pembelajaran." },
+  { "id": "penilaian", "label": "Penilaian", "pernyataan": "Soal tes yang diberikan sesuai dengan materi yang telah diajarkan." }
+]
