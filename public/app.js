@@ -178,9 +178,9 @@ function screenStudentTest() {
     btn.disabled = true;
     btn.textContent = "Mengirim...";
     try {
-      const data = await api(`/api/session/${state.sessionId}/answer`, {
+      const data = await api(`/api/session/answer`, {
         method: "POST",
-        body: JSON.stringify({ itemId: item.id, jawaban: state.selectedOpsi }),
+        body: JSON.stringify({ sessionId: state.sessionId, itemId: item.id, jawaban: state.selectedOpsi }),
       });
       if (data.selesai) {
         state.hasil = data.hasil;

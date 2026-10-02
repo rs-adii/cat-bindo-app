@@ -1,27 +1,5 @@
 {
-  "sessions": {
-    "f0a6f8c3-da91-424f-bfc3-6473c698c932": {
-      "id": "f0a6f8c3-da91-424f-bfc3-6473c698c932",
-      "nama": "Rohmat Setiadi",
-      "kelas": "XI TKJ 1",
-      "theta": 4,
-      "se": 7.524391382167265,
-      "administered": [
-        {
-          "itemId": "BI-11",
-          "b": 0,
-          "x": 1,
-          "kompetensi": "Membaca"
-        }
-      ],
-      "status": "ongoing",
-      "mulai": "2026-09-30T13:23:49.792Z",
-      "selesai": null,
-      "skor": null
-    }
-  },
+  "sessions": {},
   "feedbacks": [],
-  "itemUsage": {
-    "BI-11": 1
-  }
+  "itemUsage": {}
 }

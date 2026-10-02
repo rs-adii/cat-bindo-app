@@ -1,0 +1,39 @@
+[build]
+  command = "npm install"
+  publish = "public"
+  functions = "netlify/functions"
+
+[[redirects]]
+  from = "/api/session/start"
+  to = "/.netlify/functions/session-start"
+  status = 200
+
+[[redirects]]
+  from = "/api/session/answer"
+  to = "/.netlify/functions/session-answer"
+  status = 200
+
+[[redirects]]
+  from = "/api/feedback"
+  to = "/.netlify/functions/feedback"
+  status = 200
+
+[[redirects]]
+  from = "/api/meta/dimensi"
+  to = "/.netlify/functions/meta-dimensi"
+  status = 200
+
+[[redirects]]
+  from = "/api/teacher/sessions"
+  to = "/.netlify/functions/teacher-sessions"
+  status = 200
+
+[[redirects]]
+  from = "/api/teacher/feedback-summary"
+  to = "/.netlify/functions/teacher-feedback-summary"
+  status = 200
+
+[[redirects]]
+  from = "/api/teacher/item-stats"
+  to = "/.netlify/functions/teacher-item-stats"
+  status = 200
