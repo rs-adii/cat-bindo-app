@@ -1,7 +1,7 @@
 {
-  "name": "siep-bahasa-indonesia",
+  "name": "siep-smk",
   "version": "1.0.0",
-  "description": "Sistem Informasi Evaluasi Pembelajaran Terpadu - bank soal adaptif (CAT) Bahasa Indonesia SMA/SMK dan kuesioner feedback siswa",
+  "description": "SIEP SMK - Sistem Informasi Evaluasi Pembelajaran Terpadu, bank soal adaptif (CAT) dengan mata pelajaran Bahasa Indonesia sebagai latihan soal, dan kuesioner feedback siswa",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

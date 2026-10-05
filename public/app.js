@@ -33,7 +33,7 @@ async function api(path, opts) {
 function topbar(roleLabel, onBack) {
   const bar = el(`
     <div class="topbar">
-      <div class="mark">SIEP <span>Bahasa Indonesia</span></div>
+      <div class="mark">SIEP <span>SMK</span></div>
       <div class="role"></div>
     </div>
   `);

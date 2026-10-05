@@ -1,9 +1,10 @@
-# SIEP Bahasa Indonesia — Bank Soal Adaptif (CAT) + Kuesioner Feedback
+# SIEP SMK — Bank Soal Adaptif (CAT) + Kuesioner Feedback
 
 Prototipe kerja untuk capstone project **"Pengembangan Sistem Informasi Evaluasi
 Pembelajaran Terpadu Berbasis Web: Bank Soal Adaptif dengan Metode CAT dan
-Kuesioner Feedback Siswa di SMK"**, dengan bank soal mata pelajaran **Bahasa
-Indonesia SMA/SMK**.
+Kuesioner Feedback Siswa di SMK"**. Mata pelajaran **Bahasa Indonesia SMA/SMK**
+dipakai sebagai bank soal latihan untuk membuktikan sistem ini bekerja — struktur
+bank soal dirancang agar mata pelajaran lain mudah ditambahkan di kemudian hari.
 
 Proyek ini punya **dua mode** yang berbagi mesin CAT yang persis sama
 (`lib/catEngine.js`), supaya hasil tes tidak pernah berbeda antara keduanya:

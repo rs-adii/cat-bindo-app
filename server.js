@@ -207,5 +207,5 @@ app.get("/api/teacher/item-stats", (req, res) => {
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log(`Server SIEP Bahasa Indonesia (mode lokal) berjalan di http://localhost:${PORT}`);
+  console.log(`Server SIEP SMK (mode lokal) berjalan di http://localhost:${PORT}`);
 });
