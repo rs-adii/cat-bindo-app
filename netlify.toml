@@ -1,39 +1,105 @@
 [build]
-  command = "npm install"
   publish = "public"
   functions = "netlify/functions"
+  command = "npm install"
+
+# Rute dengan parameter path (:id, :tesId, :sesiId) dipetakan lebih dulu
+# (urutan penting — Netlify mencocokkan dari atas ke bawah).
 
 [[redirects]]
-  from = "/api/session/start"
-  to = "/.netlify/functions/session-start"
+  from = "/api/admin/users/:id"
+  to = "/.netlify/functions/admin-users?id=:id"
+  status = 200
+[[redirects]]
+  from = "/api/admin/users"
+  to = "/.netlify/functions/admin-users"
   status = 200
 
 [[redirects]]
-  from = "/api/session/answer"
-  to = "/.netlify/functions/session-answer"
+  from = "/api/admin/kelas/:id"
+  to = "/.netlify/functions/admin-kelas?id=:id"
+  status = 200
+[[redirects]]
+  from = "/api/admin/kelas"
+  to = "/.netlify/functions/admin-kelas"
   status = 200
 
 [[redirects]]
-  from = "/api/feedback"
-  to = "/.netlify/functions/feedback"
+  from = "/api/admin/mapel/:id"
+  to = "/.netlify/functions/admin-mapel?id=:id"
+  status = 200
+[[redirects]]
+  from = "/api/admin/mapel"
+  to = "/.netlify/functions/admin-mapel"
   status = 200
 
 [[redirects]]
-  from = "/api/meta/dimensi"
-  to = "/.netlify/functions/meta-dimensi"
+  from = "/api/guru/soal/:id"
+  to = "/.netlify/functions/guru-soal?id=:id"
+  status = 200
+[[redirects]]
+  from = "/api/guru/soal"
+  to = "/.netlify/functions/guru-soal"
   status = 200
 
 [[redirects]]
-  from = "/api/teacher/sessions"
-  to = "/.netlify/functions/teacher-sessions"
+  from = "/api/guru/tes/:id"
+  to = "/.netlify/functions/guru-tes?id=:id"
+  status = 200
+[[redirects]]
+  from = "/api/guru/tes"
+  to = "/.netlify/functions/guru-tes"
   status = 200
 
 [[redirects]]
-  from = "/api/teacher/feedback-summary"
-  to = "/.netlify/functions/teacher-feedback-summary"
+  from = "/api/guru/kuesioner/:tesId"
+  to = "/.netlify/functions/guru-kuesioner?tesId=:tesId"
+  status = 200
+[[redirects]]
+  from = "/api/guru/kuesioner"
+  to = "/.netlify/functions/guru-kuesioner"
   status = 200
 
 [[redirects]]
-  from = "/api/teacher/item-stats"
-  to = "/.netlify/functions/teacher-item-stats"
+  from = "/api/guru/hasil"
+  to = "/.netlify/functions/guru-hasil"
+  status = 200
+
+[[redirects]]
+  from = "/api/guru/feedback-summary/:tesId"
+  to = "/.netlify/functions/guru-feedback-summary?tesId=:tesId"
+  status = 200
+
+[[redirects]]
+  from = "/api/siswa/tes-tersedia"
+  to = "/.netlify/functions/siswa-tes-tersedia"
+  status = 200
+
+[[redirects]]
+  from = "/api/siswa/tes/:tesId/mulai"
+  to = "/.netlify/functions/siswa-mulai?tesId=:tesId"
+  status = 200
+
+[[redirects]]
+  from = "/api/siswa/sesi/:sesiId/jawab"
+  to = "/.netlify/functions/siswa-jawab?sesiId=:sesiId"
+  status = 200
+
+[[redirects]]
+  from = "/api/siswa/kuesioner/submit"
+  to = "/.netlify/functions/siswa-kuesioner-submit"
+  status = 200
+[[redirects]]
+  from = "/api/siswa/kuesioner/:tesId"
+  to = "/.netlify/functions/siswa-kuesioner?tesId=:tesId"
+  status = 200
+
+[[redirects]]
+  from = "/api/siswa/hasil"
+  to = "/.netlify/functions/siswa-hasil"
+  status = 200
+
+[[redirects]]
+  from = "/api/auth/login"
+  to = "/.netlify/functions/auth-login"
   status = 200

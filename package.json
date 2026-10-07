@@ -1,14 +1,18 @@
 {
   "name": "siep-smk",
-  "version": "1.0.0",
-  "description": "SIEP SMK - Sistem Informasi Evaluasi Pembelajaran Terpadu, bank soal adaptif (CAT) dengan mata pelajaran Bahasa Indonesia sebagai latihan soal, dan kuesioner feedback siswa",
+  "version": "2.0.0",
+  "description": "SIEP SMK v2 - sistem evaluasi pembelajaran dengan login 3 peran (Admin/Guru/Siswa), bank soal multi-mapel, dan tes adaptif berbasis level",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "node server.js"
+    "dev": "node server.js",
+    "seed": "node lib/seed.js"
   },
   "dependencies": {
     "express": "^4.19.2",
+    "better-sqlite3": "^11.3.0",
+    "bcryptjs": "^2.4.3",
+    "jsonwebtoken": "^9.0.2",
     "@supabase/supabase-js": "^2.45.0"
   },
   "engines": {

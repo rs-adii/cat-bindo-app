@@ -1,160 +1,134 @@
-# SIEP SMK — Bank Soal Adaptif (CAT) + Kuesioner Feedback
+# SIEP SMK v2 — Sesuai Use Case, ERD, dan Flowchart
 
-Prototipe kerja untuk capstone project **"Pengembangan Sistem Informasi Evaluasi
-Pembelajaran Terpadu Berbasis Web: Bank Soal Adaptif dengan Metode CAT dan
-Kuesioner Feedback Siswa di SMK"**. Mata pelajaran **Bahasa Indonesia SMA/SMK**
-dipakai sebagai bank soal latihan untuk membuktikan sistem ini bekerja — struktur
-bank soal dirancang agar mata pelajaran lain mudah ditambahkan di kemudian hari.
+Versi ini adalah penulisan ulang total dari prototipe SIEP SMK sebelumnya, dibangun
+mengikuti tiga diagram perancangan: **Use Case Diagram**, **ERD**, dan **Flowchart**
+mesin tes adaptif.
 
-Proyek ini punya **dua mode** yang berbagi mesin CAT yang persis sama
-(`lib/catEngine.js`), supaya hasil tes tidak pernah berbeda antara keduanya:
+## Menjalankan
 
-| Mode | Backend | Penyimpanan | Cocok untuk |
-|---|---|---|---|
-| **Lokal** | `server.js` (Express) | file `data/db.json` | coba-coba di komputer sendiri, tanpa setup apa pun |
-| **Produksi** | `netlify/functions/*.js` | Supabase (PostgreSQL) | demo online yang datanya tidak hilang |
-
-## Mode 1 — Jalankan di komputer sendiri
-
-Butuh Node.js versi 18 ke atas.
+Butuh Node.js 18+.
 
 ```bash
-cd cat-bindo-app
+cd siep-smk-v2
 npm install
 npm start
 ```
 
-Buka `http://localhost:3000`. Data tersimpan di `data/db.json` di komputer
-Anda sendiri — cukup untuk mencoba alur aplikasi, tapi **tidak** untuk
-dibagikan online (lihat Mode 2).
+Buka `http://localhost:3000`. Database SQLite (`data/siep.db`) dan data awal
+dibuat otomatis saat pertama kali dijalankan.
 
-## Mode 2 — Deploy online dengan Netlify + Supabase
+**Akun demo** (dibuat otomatis oleh `lib/seed.js`):
 
-Dipakai kalau Anda ingin aplikasi bisa diakses lewat URL publik dan datanya
-tahan lama (tidak hilang saat server idle/restart, berbeda dari penyimpanan
-file JSON biasa).
-
-### Langkah A — Siapkan basis data di Supabase
-
-1. Buat akun gratis di [supabase.com](https://supabase.com) lalu buat proyek baru.
-2. Buka **SQL Editor** di dashboard Supabase, tempel isi file `supabase/schema.sql`
-   dari proyek ini, lalu jalankan (Run). Ini membuat tabel `sessions` dan
-   `feedbacks`.
-3. Buka **Project Settings → API**. Catat dua nilai ini:
-   - **Project URL** (contoh: `https://xxxxx.supabase.co`)
-   - **service_role key** (bukan `anon` key — ini kunci rahasia untuk akses
-     penuh dari server, jangan pernah ditaruh di kode frontend)
-
-### Langkah B — Deploy ke Netlify
-
-1. Unggah folder `cat-bindo-app` ini ke repository GitHub.
-2. Daftar/masuk ke [netlify.com](https://netlify.com) dengan akun GitHub.
-3. Klik **Add new site → Import an existing project**, pilih repository tadi.
-   Netlify otomatis membaca `netlify.toml` (build command, folder publish,
-   dan folder functions sudah terisi).
-4. Sebelum/selama deploy, buka **Site configuration → Environment variables**
-   dan tambahkan:
-   - `SUPABASE_URL` = Project URL dari Langkah A
-   - `SUPABASE_SERVICE_ROLE_KEY` = service_role key dari Langkah A
-5. Klik **Deploy site**. Setelah selesai, Anda mendapat URL publik
-   (`https://nama-acak.netlify.app`).
-
-### Kenapa butuh dua backend (Express dan Netlify Functions)?
-
-Netlify tidak bisa menjalankan server Express yang menyala terus-menerus —
-yang bisa dijalankan hanya **fungsi serverless** yang aktif sebentar per
-permintaan. Karena itu, setiap rute API ditulis ulang sebagai satu file di
-`netlify/functions/`, tapi logika CAT-nya (model Rasch, estimasi kemampuan,
-aturan berhenti) tetap satu sumber kebenaran di `lib/catEngine.js` yang
-di-require oleh keduanya.
-
-| Rute (dipanggil frontend) | Mode lokal | Mode Netlify |
+| Peran | Username | Password |
 |---|---|---|
-| `POST /api/session/start` | `server.js` | `netlify/functions/session-start.js` |
-| `POST /api/session/answer` | `server.js` | `netlify/functions/session-answer.js` |
-| `POST /api/feedback` | `server.js` | `netlify/functions/feedback.js` |
-| `GET /api/meta/dimensi` | `server.js` | `netlify/functions/meta-dimensi.js` |
-| `GET /api/teacher/sessions` | `server.js` | `netlify/functions/teacher-sessions.js` |
-| `GET /api/teacher/feedback-summary` | `server.js` | `netlify/functions/teacher-feedback-summary.js` |
-| `GET /api/teacher/item-stats` | `server.js` | `netlify/functions/teacher-item-stats.js` |
+| Admin | `admin` | `admin123` |
+| Guru | `guru1` | `guru123` |
+| Siswa | `siswa1`, `siswa2` | `siswa123` |
 
-File `netlify.toml` memetakan path `/api/...` yang dipanggil `public/app.js`
-ke path asli Netlify Functions (`/.netlify/functions/...`), jadi kode
-frontend tidak perlu tahu bedanya.
+Satu tes contoh ("Tes Bahasa Indonesia — Bab Teks Eksposisi", 10 soal) sudah
+dijadwalkan untuk kelas XI Bahasa 1 dan siap dikerjakan siswa1/siswa2, lengkap
+dengan kuesioner feedback 5 pernyataan.
 
-### Keamanan kunci Supabase
+## Pemetaan ke diagram
 
-`SUPABASE_SERVICE_ROLE_KEY` melewati semua aturan keamanan (Row Level
-Security) di Supabase, jadi dia **hanya** boleh dipakai di `lib/supabaseClient.js`
-yang berjalan di sisi server (Netlify Functions). Frontend (`public/app.js`)
-tidak pernah menghubungi Supabase secara langsung — selalu lewat `/api/...`
-yang diteruskan ke fungsi server. Ini sekaligus menjaga kunci jawaban soal
-(`kunci`) dan parameter kesulitan (`b`) tidak pernah terkirim ke browser
-siswa.
+**Use Case** → setiap aktor dan aksi di diagram punya rute API dan layar
+tersendiri:
+
+| Aktor | Aksi | Rute API | Layar |
+|---|---|---|---|
+| Admin | Login | `POST /api/auth/login` | Login |
+| Admin | Kelola Data Pengguna | `/api/admin/users` (CRUD) | Tab "Kelola Data Pengguna" |
+| Admin | Kelola Kelas & Mapel | `/api/admin/kelas`, `/api/admin/mapel` | Tab "Kelola Kelas & Mapel" |
+| Guru | Kelola Bank Soal | `/api/guru/soal` (CRUD) | Tab "Bank Soal" |
+| Guru | Atur Jadwal Tes | `/api/guru/tes` (CRUD) | Tab "Jadwal Tes" |
+| Guru | Kelola Kuesioner | `/api/guru/kuesioner` | Tab "Kuesioner" |
+| Guru | Lihat Hasil & Rekap Feedback | `/api/guru/hasil`, `/api/guru/feedback-summary/:tesId` | Tab "Hasil & Feedback" |
+| Siswa | Kerjakan Tes CAT | `/api/siswa/tes/:id/mulai`, `/api/siswa/sesi/:id/jawab` | "Tes Tersedia" → alur tes |
+| Siswa | Isi Kuesioner Feedback | `/api/siswa/kuesioner/*` | Setelah hasil tes |
+| Siswa | Lihat Hasil Tes | `/api/siswa/hasil` | Tab "Riwayat Hasil" |
+
+**ERD** → `data/schema.sqlite.sql` (lokal) dan `data/schema.postgres.sql`
+(Supabase, untuk deploy nanti) berisi sepuluh tabel persis sesuai diagram:
+`mapel`, `kelas`, `users`, `soal`, `tes`, `kuesioner`, `pertanyaan_kuesioner`,
+`sesi_tes`, `jawaban`, `respon_kuesioner`. Empat penyesuaian praktis dari ERD
+asli (ditulis sebagai komentar di kepala file skema):
+
+1. `tes.kelas_id` ditambahkan agar relasi "diujikan" (Kelas–TES) bisa
+   diimplementasikan — `NULL` berarti tes terbuka untuk semua kelas.
+2. `jawaban.level_saat_itu` dan `jawaban.urutan` ditambahkan supaya mesin CAT
+   bisa melacak soal "belum pernah muncul" dan progres per sesi.
+3. `sesi_tes.mulai` / `sesi_tes.selesai` ditambahkan untuk kebutuhan dasbor guru.
+4. `respon_kuesioner.sesi_id` ditambahkan agar feedback terikat ke sesi tes
+   tertentu, bukan cuma ke siswa secara umum.
+
+**Flowchart** → `lib/catEngineLevel.js` mengikuti alurnya persis:
+mulai di **level sedang (3)** → jawaban benar → level naik (maks 5) / salah →
+level turun (min 1) → ambil soal sesuai level yang **belum pernah muncul** →
+ulangi sampai `jumlah_soal` pada tabel `tes` tercapai → hitung nilai
+(persentase jawaban benar) dan level akhir → simpan ke `sesi_tes` → siswa isi
+kuesioner → simpan ke `respon_kuesioner` → guru lihat hasil & rekap.
+
+Catatan: ini **bukan** model Rasch/IRT seperti pada prototipe sebelumnya —
+sesuai pilihan yang sudah disepakati, pendekatannya memang disederhanakan
+menjadi sistem level naik/turun sesuai flowchart.
 
 ## Arsitektur
 
 ```
-Frontend (public/, JS murni)
-        |  fetch("/api/...")
-        v
-+--------------------+-------------------------------+
-|  Mode lokal        |  Mode produksi                 |
-|  server.js         |  netlify/functions/*.js        |
-|  (Express)         |  (serverless, via Netlify)     |
-+---------+----------+---------------+-----------------+
-          |                          |
-   data/db.json              Supabase (PostgreSQL)
-          |                          |
-          +------------+-------------+
-                       v
-              lib/catEngine.js
-        (mesin CAT, satu-satunya sumber
-         logika Rasch untuk keduanya)
+public/ (HTML+CSS+JS polos, SPA)
+   │  fetch() dengan header Authorization: Bearer <token>
+   ▼
+server.js (Express)
+   │
+   ├─ lib/auth.js        → hashing password (bcryptjs), token sesi in-memory
+   ├─ lib/catEngineLevel.js → mesin tes adaptif berbasis level
+   ├─ lib/db.js           → koneksi SQLite
+   └─ lib/seed.js         → data awal (akun, bank soal, satu jadwal tes)
 ```
 
-- `data/questionBank.json` — 21 butir soal Bahasa Indonesia (ejaan, kosakata,
-  tata bahasa, membaca pemahaman, sastra, menulis) dengan parameter kesulitan
-  `b` dari −2.0 sampai +2.0 untuk model Rasch.
-- `data/questionnaire.json` — 5 pernyataan kuesioner feedback (skala 1–5).
-- `supabase/schema.sql` — definisi tabel `sessions` dan `feedbacks` untuk
-  mode produksi.
+## Deploy ke Netlify + Supabase (mode produksi)
 
-## Mesin CAT (model Rasch / IRT 1PL)
+Mode kedua ini sudah lengkap: `netlify/functions/` berisi 15 serverless
+function yang meng-cover seluruh rute API, memakai Supabase (Postgres)
+sebagai basis data lewat `@supabase/supabase-js`. Login memakai JWT
+(`lib/auth.js`) sehingga sesi tetap valid lintas-instance serverless —
+beda dari pendekatan token in-memory yang hanya cocok untuk satu proses
+lokal.
 
-Diimplementasikan di `lib/catEngine.js`, sepenuhnya di sisi server (kunci
-jawaban dan parameter kesulitan butir **tidak pernah** dikirim ke klien
-selama tes berlangsung):
+1. **Buat proyek Supabase**, lalu jalankan seluruh isi `data/schema.postgres.sql`
+   di SQL Editor-nya.
+2. **Isi data awal** dari komputer Anda sendiri (bukan dari Netlify):
+   ```bash
+   SUPABASE_URL=https://xxxx.supabase.co \
+   SUPABASE_SERVICE_ROLE_KEY=xxxx \
+   node lib/seedSupabase.js
+   ```
+3. **Push ke GitHub**, lalu import repo-nya di Netlify (New site → Import
+   an existing project). `netlify.toml` sudah berisi build command dan
+   seluruh pemetaan rute, tidak perlu diubah manual.
+4. **Isi 3 environment variable** di Site configuration → Environment
+   variables:
+   - `SUPABASE_URL`
+   - `SUPABASE_SERVICE_ROLE_KEY` (bukan kunci `anon` — kunci ini melewati
+     Row Level Security yang dikunci di skema)
+   - `JWT_SECRET` (string acak bebas, dipakai menandatangani token login —
+     **wajib diisi**; kalau kosong, kode memakai nilai bawaan yang tidak
+     aman untuk produksi)
+5. **Trigger deploy ulang** setelah environment variable terisi.
 
-- **Peluang menjawab benar:** `P(θ) = 1 / (1 + e^-(θ-b))`
-- **Pemilihan butir:** butir dengan informasi `I(θ) = P(θ)·(1-P(θ))` tertinggi
-  pada estimasi kemampuan saat ini, dengan keacakan ringan di antara 3
-  kandidat teratas sebagai kontrol keterpaparan butir.
-- **Estimasi kemampuan:** Newton–Raphson (maximum likelihood), dibatasi pada
-  rentang θ ∈ [−4, 4] agar tidak divergen pada pola jawaban ekstrem.
-- **Aturan penghentian:** tes berhenti bila jumlah butir ≥ 8 **dan** standard
-  error ≤ 0,30, atau jumlah butir mencapai 15.
-- **Skor akhir:** θ dikonversi linear ke skala 0–100 untuk laporan ke siswa
-  dan guru.
+Keduanya (lokal dan Netlify) memakai `lib/catEngineLevel.js` dan
+`lib/seedSoalData.json` yang sama persis — tidak ada logika yang
+digandakan atau berisiko berbeda antara dua mode.
 
-Konstanta ini (`MIN_ITEMS`, `MAX_ITEMS`, `SE_STOP`) ada di bagian atas
-`lib/catEngine.js` dan berlaku untuk kedua mode sekaligus.
+## Keterbatasan yang masih ada
 
-## Menambah soal atau mata pelajaran lain
-
-Tambahkan objek baru ke `data/questionBank.json` dengan field `id`,
-`kompetensi`, `pertanyaan`, `opsi` (4 pilihan), `kunci` (indeks 0–3), dan `b`
-(taksiran kesulitan). Kalau pakai mode Netlify, cukup commit perubahan file
-ini ke GitHub — Netlify akan build ulang otomatis.
-
-## Keterbatasan prototipe ini
-
-- Belum ada autentikasi/login guru — dasbor guru dapat diakses siapa pun yang
-  membuka situs dan memilih peran Guru. Untuk penggunaan nyata, tambahkan
-  autentikasi sebelum rute `/api/teacher/*` (mis. Supabase Auth).
-- Kalibrasi kesulitan butir (`b`) pada bank soal saat ini adalah taksiran
-  awal penulis soal, sesuai batasan masalah pada proposal; idealnya diperbarui
-  secara berkala dari data jawaban siswa sungguhan.
-- Tabel Supabase diamankan dengan Row Level Security yang ditutup rapat untuk
-  akses publik — semua baca/tulis wajib lewat Netlify Functions. Jangan
-  menonaktifkan RLS atau mengekspos service_role key di kode frontend.
+- Guru saat ini bisa mengelola/menghapus soal siapa pun (tidak dibatasi
+  hanya miliknya sendiri) — disederhanakan untuk demo satu kelas.
+- Belum ada halaman edit untuk kelas/soal dari UI (baru tambah & hapus);
+  rute `PUT` untuk update sudah ada di backend, tinggal ditambahkan
+  tombol "Edit" di frontend kalau diperlukan.
+- Logout pada mode JWT bersifat sisi-klien saja (token dibuang dari
+  memori peramban) — token lama secara teknis masih valid sampai
+  kedaluwarsa (8 jam) kalau disalin manual. Untuk kebutuhan keamanan
+  lebih ketat, tambahkan daftar token yang dicabut (blocklist) di basis
+  data.
