@@ -95,7 +95,6 @@ function screenLogin() {
       </div>
       <div class="demo-accounts">
          Akun contoh 
-      /*  — Admin: <code>admin / admin123</code><br/>*/
         Guru: <code>guru1 / guru123</code><br/>
         Siswa: <code>siswa1 / siswa123</code>
       </div>
