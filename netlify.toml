@@ -8,7 +8,7 @@
 
 [[redirects]]
   from = "/api/admin/users/:id"
-  to = "/.netlify/functions/admin-users?id=:id"
+  to = "/.netlify/functions/admin-users"
   status = 200
 [[redirects]]
   from = "/api/admin/users"
@@ -17,7 +17,7 @@
 
 [[redirects]]
   from = "/api/admin/kelas/:id"
-  to = "/.netlify/functions/admin-kelas?id=:id"
+  to = "/.netlify/functions/admin-kelas"
   status = 200
 [[redirects]]
   from = "/api/admin/kelas"
@@ -26,7 +26,7 @@
 
 [[redirects]]
   from = "/api/admin/mapel/:id"
-  to = "/.netlify/functions/admin-mapel?id=:id"
+  to = "/.netlify/functions/admin-mapel"
   status = 200
 [[redirects]]
   from = "/api/admin/mapel"
@@ -35,7 +35,7 @@
 
 [[redirects]]
   from = "/api/guru/soal/:id"
-  to = "/.netlify/functions/guru-soal?id=:id"
+  to = "/.netlify/functions/guru-soal"
   status = 200
 [[redirects]]
   from = "/api/guru/soal"
@@ -44,7 +44,7 @@
 
 [[redirects]]
   from = "/api/guru/tes/:id"
-  to = "/.netlify/functions/guru-tes?id=:id"
+  to = "/.netlify/functions/guru-tes"
   status = 200
 [[redirects]]
   from = "/api/guru/tes"
@@ -53,7 +53,7 @@
 
 [[redirects]]
   from = "/api/guru/kuesioner/:tesId"
-  to = "/.netlify/functions/guru-kuesioner?tesId=:tesId"
+  to = "/.netlify/functions/guru-kuesioner"
   status = 200
 [[redirects]]
   from = "/api/guru/kuesioner"
@@ -67,7 +67,7 @@
 
 [[redirects]]
   from = "/api/guru/feedback-summary/:tesId"
-  to = "/.netlify/functions/guru-feedback-summary?tesId=:tesId"
+  to = "/.netlify/functions/guru-feedback-summary"
   status = 200
 
 [[redirects]]
@@ -77,12 +77,12 @@
 
 [[redirects]]
   from = "/api/siswa/tes/:tesId/mulai"
-  to = "/.netlify/functions/siswa-mulai?tesId=:tesId"
+  to = "/.netlify/functions/siswa-mulai"
   status = 200
 
 [[redirects]]
   from = "/api/siswa/sesi/:sesiId/jawab"
-  to = "/.netlify/functions/siswa-jawab?sesiId=:sesiId"
+  to = "/.netlify/functions/siswa-jawab"
   status = 200
 
 [[redirects]]
@@ -91,7 +91,7 @@
   status = 200
 [[redirects]]
   from = "/api/siswa/kuesioner/:tesId"
-  to = "/.netlify/functions/siswa-kuesioner?tesId=:tesId"
+  to = "/.netlify/functions/siswa-kuesioner"
   status = 200
 
 [[redirects]]

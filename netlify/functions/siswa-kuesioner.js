@@ -1,11 +1,11 @@
 const { getClient } = require("../../lib/supabaseClient");
 const { checkAuth } = require("../../lib/auth");
-const { json } = require("../../lib/httpHelpers");
+const { json, getParam } = require("../../lib/httpHelpers");
 
 exports.handler = async (event) => {
   const { errorResponse } = checkAuth(event, "siswa");
   if (errorResponse) return errorResponse;
-  const tesId = event.queryStringParameters && event.queryStringParameters.tesId;
+  const tesId = getParam(event, "tesId", /\/api\/siswa\/kuesioner\/([^/?]+)/);
   if (!tesId) return json(400, { error: "tesId wajib disertakan." });
   const supabase = getClient();
 

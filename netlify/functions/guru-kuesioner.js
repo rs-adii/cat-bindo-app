@@ -1,6 +1,6 @@
 const { getClient } = require("../../lib/supabaseClient");
 const { checkAuth } = require("../../lib/auth");
-const { json, parseBody } = require("../../lib/httpHelpers");
+const { json, parseBody, getParam } = require("../../lib/httpHelpers");
 
 exports.handler = async (event) => {
   const { errorResponse } = checkAuth(event, "guru", "admin");
@@ -8,7 +8,7 @@ exports.handler = async (event) => {
   const supabase = getClient();
 
   if (event.httpMethod === "GET") {
-    const tesId = event.queryStringParameters && event.queryStringParameters.tesId;
+    const tesId = getParam(event, "tesId", /\/api\/guru\/kuesioner\/([^/?]+)/);
     if (!tesId) return json(400, { error: "tesId wajib disertakan." });
     const { data: kuesioner } = await supabase.from("kuesioner").select("*").eq("tes_id", tesId).maybeSingle();
     if (!kuesioner) return json(200, null);

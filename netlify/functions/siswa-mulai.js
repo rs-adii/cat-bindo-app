@@ -1,6 +1,6 @@
 const { getClient } = require("../../lib/supabaseClient");
 const { checkAuth } = require("../../lib/auth");
-const { json } = require("../../lib/httpHelpers");
+const { json, getParam } = require("../../lib/httpHelpers");
 const cat = require("../../lib/catEngineLevel");
 
 function levelSaatIni(jawabanSesi) {
@@ -13,7 +13,7 @@ exports.handler = async (event) => {
   if (event.httpMethod !== "POST") return json(405, { error: "Method tidak diizinkan." });
   const { user, errorResponse } = checkAuth(event, "siswa");
   if (errorResponse) return errorResponse;
-  const tesId = event.queryStringParameters && event.queryStringParameters.tesId;
+  const tesId = getParam(event, "tesId", /\/api\/siswa\/tes\/([^/?]+)\/mulai/);
   if (!tesId) return json(400, { error: "tesId wajib disertakan." });
   const supabase = getClient();
 

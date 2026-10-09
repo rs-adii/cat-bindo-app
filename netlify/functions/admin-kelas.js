@@ -1,11 +1,11 @@
 const { getClient } = require("../../lib/supabaseClient");
 const { checkAuth } = require("../../lib/auth");
-const { json, parseBody } = require("../../lib/httpHelpers");
+const { json, parseBody, getParam } = require("../../lib/httpHelpers");
 
 exports.handler = async (event) => {
   const { errorResponse: errGet } = checkAuth(event, "admin", "guru");
   const supabase = getClient();
-  const id = event.queryStringParameters && event.queryStringParameters.id;
+  const id = getParam(event, "id", /\/api\/admin\/kelas\/([^/?]+)/);
 
   if (event.httpMethod === "GET") {
     if (errGet) return errGet;
