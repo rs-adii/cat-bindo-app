@@ -129,3 +129,8 @@ th { color: var(--ink-soft); font-weight: 600; font-size: 0.74rem; }
   .hasil-skor .angka { font-size: 2.6rem; padding: 6px 18px; }
   .field-row { flex-direction: column; gap: 0; }
 }
+
+/* Timer tes */
+.timer { font-variant-numeric: tabular-nums; font-weight: 600; font-size: 0.95rem; color: var(--ink); }
+.timer.warn { color: var(--danger); }
+code { background: var(--paper-alt); padding: 1px 5px; border-radius: 3px; font-size: 0.82em; }

@@ -1,11 +1,13 @@
 const { getClient } = require("../../lib/supabaseClient");
 const { checkAuth } = require("../../lib/auth");
-const { json } = require("../../lib/httpHelpers");
+const { json, aman } = require("../../lib/httpHelpers");
+const { sapuSesiKadaluarsa } = require("../../lib/sesiSupabase");
 
-exports.handler = async (event) => {
+exports.handler = aman(async (event) => {
   const { user, errorResponse } = checkAuth(event, "siswa");
   if (errorResponse) return errorResponse;
   const supabase = getClient();
+  await sapuSesiKadaluarsa(supabase); // tutup sesi yang waktunya habis tapi ditinggalkan siswa
 
   const { data: tesList, error } = await supabase.from("tes").select("*").order("tanggal", { ascending: false });
   if (error) return json(500, { error: error.message });
@@ -31,4 +33,4 @@ exports.handler = async (event) => {
     };
   });
   return json(200, rows);
-};
+});

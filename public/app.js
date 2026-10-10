@@ -1,6 +1,8 @@
 // app.js — SPA tanpa framework. Semua komunikasi lewat fetch() ke /api/*.
 
 const state = {
+  timerId: null,
+  deadlineMs: 0,
   token: null,
   user: null, // { users_id, nama, role, kelas_id }
   screen: "login",
@@ -39,9 +41,20 @@ async function api(path, opts = {}) {
 }
 
 function render() {
+  clearInterval(state.timerId); // hitung mundur hanya hidup di layar tes
   const app = document.getElementById("app");
   app.innerHTML = "";
   app.appendChild(SCREENS[state.screen]());
+  if (state.screen === "siswa-test") mulaiTimer();
+}
+
+// Escape teks dari pengguna (soal, komentar, nama) sebelum disisipkan ke HTML,
+// supaya karakter seperti < atau & tidak merusak tampilan dan tidak bisa
+// dipakai menyisipkan skrip.
+function esc(v) {
+  return String(v === null || v === undefined ? "" : v).replace(/[&<>"']/g, (c) => (
+    { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]
+  ));
 }
 
 function topbar(tabsEl) {
@@ -55,7 +68,7 @@ function topbar(tabsEl) {
   `);
   const who = bar.querySelector(".who");
   if (state.user) {
-    who.appendChild(el(`<span>${state.user.nama} · <span class="badge role">${state.user.role}</span></span>`));
+    who.appendChild(el(`<span>${esc(state.user.nama)} · <span class="badge role">${state.user.role}</span></span>`));
     const out = el(`<button class="link">Keluar</button>`);
     out.addEventListener("click", logout);
     who.appendChild(out);
@@ -94,7 +107,7 @@ function screenLogin() {
         <button class="btn btn-primary btn-block" id="lg-submit">Masuk</button>
       </div>
       <div class="demo-accounts">
-         Akun contoh 
+        Akun contoh — Admin: <code>admin / admin123</code><br/>
         Guru: <code>guru1 / guru123</code><br/>
         Siswa: <code>siswa1 / siswa123</code>
       </div>
@@ -117,7 +130,7 @@ function screenLogin() {
       else state.screen = "siswa-tes-list";
       render();
     } catch (e) {
-      errBox.appendChild(el(`<p class="notice">${e.message}</p>`));
+      errBox.appendChild(el(`<p class="notice">${esc(e.message)}</p>`));
     }
   };
   root.querySelector("#lg-submit").addEventListener("click", submit);
@@ -181,11 +194,11 @@ async function renderAdminPengguna(wrap) {
     const [users, kelas] = await Promise.all([api("/api/admin/users"), api("/api/admin/kelas")]);
     state.kelasList = kelas;
     const kelasSel = formCard.querySelector("#u-kelas");
-    kelasSel.innerHTML = `<option value="">—</option>` + kelas.map((k) => `<option value="${k.kelas_id}">${k.nama_kelas}</option>`).join("");
+    kelasSel.innerHTML = `<option value="">—</option>` + kelas.map((k) => `<option value="${k.kelas_id}">${esc(k.nama_kelas)}</option>`).join("");
 
     const rows = users.map((u) => {
       const tr = el(`<tr>
-        ${td(u.nama)}${td(u.username)}${td(`<span class="badge role">${u.role}</span>`)}${td(u.nama_kelas || "—")}
+        ${td(esc(u.nama))}${td(esc(u.username))}${td(`<span class="badge role">${u.role}</span>`)}${td(esc(u.nama_kelas || "—"))}
         <td class="row-actions"><button class="btn btn-sm btn-danger" data-id="${u.users_id}">Hapus</button></td>
       </tr>`);
       tr.querySelector("button").addEventListener("click", async () => {
@@ -216,7 +229,7 @@ async function renderAdminPengguna(wrap) {
       formCard.querySelector("#u-password").value = "";
       reload();
     } catch (e) {
-      errBox.appendChild(el(`<p class="notice">${e.message}</p>`));
+      errBox.appendChild(el(`<p class="notice">${esc(e.message)}</p>`));
     }
   });
 
@@ -255,7 +268,7 @@ async function renderAdminKelasMapel(wrap) {
   async function reloadKelas() {
     const kelas = await api("/api/admin/kelas");
     const rows = kelas.map((k) => {
-      const tr = el(`<tr>${td(k.nama_kelas)}${td(k.jurusan || "—")}
+      const tr = el(`<tr>${td(esc(k.nama_kelas))}${td(esc(k.jurusan || "—"))}
         <td class="row-actions"><button class="btn btn-sm btn-danger" data-id="${k.kelas_id}">Hapus</button></td></tr>`);
       tr.querySelector("button").addEventListener("click", async () => {
         if (!confirm(`Hapus kelas ${k.nama_kelas}?`)) return;
@@ -270,7 +283,7 @@ async function renderAdminKelasMapel(wrap) {
   async function reloadMapel() {
     const mapel = await api("/api/admin/mapel");
     const rows = mapel.map((m) => {
-      const tr = el(`<tr>${td(m.nama_mapel)}
+      const tr = el(`<tr>${td(esc(m.nama_mapel))}
         <td class="row-actions"><button class="btn btn-sm btn-danger" data-id="${m.mapel_id}">Hapus</button></td></tr>`);
       tr.querySelector("button").addEventListener("click", async () => {
         if (!confirm(`Hapus mapel ${m.nama_mapel}?`)) return;
@@ -300,7 +313,7 @@ async function renderAdminKelasMapel(wrap) {
       mapelForm.querySelector("#m-nama").value = "";
       reloadMapel();
     } catch (e) {
-      errBox.appendChild(el(`<p class="notice">${e.message}</p>`));
+      errBox.appendChild(el(`<p class="notice">${esc(e.message)}</p>`));
     }
   });
 
@@ -325,17 +338,94 @@ function screenGuru() {
   return root;
 }
 
+// ---------- Impor soal dari Excel/CSV ----------
+const KOLOM_TEMPLATE = ["mapel", "pertanyaan", "opsi_a", "opsi_b", "opsi_c", "opsi_d", "kunci", "tingkat_kesulitan"];
+const TEMPLATE_SOAL = [
+  KOLOM_TEMPLATE,
+  ["Bahasa Indonesia", "(Contoh, hapus baris ini) Penulisan kata baku yang benar adalah...", "Apotik", "Apotek", "Apotheek", "Apotic", "B", 1],
+  ["Bahasa Indonesia", "(Contoh, hapus baris ini) Antonim kata 'optimis' adalah...", "Yakin", "Percaya diri", "Pesimis", "Ragu-ragu", "C", 2],
+];
+
+function unduhBerkas(nama, isi, tipe) {
+  const a = document.createElement("a");
+  a.href = URL.createObjectURL(new Blob([isi], { type: tipe }));
+  a.download = nama;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+function unduhTemplateCsv() {
+  // Titik koma + BOM: terbuka rapi di Excel berbahasa Indonesia
+  const csv = TEMPLATE_SOAL.map((r) => r.map((c) => {
+    const t = String(c);
+    return /[";\r\n]/.test(t) ? '"' + t.replace(/"/g, '""') + '"' : t;
+  }).join(";")).join("\r\n");
+  unduhBerkas("template-soal.csv", "\uFEFF" + csv, "text/csv;charset=utf-8");
+}
+function unduhTemplateXlsx() {
+  if (typeof XLSX === "undefined") return alert("Pembuat file Excel tidak termuat. Gunakan template CSV.");
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(TEMPLATE_SOAL), "Soal");
+  XLSX.writeFile(wb, "template-soal.xlsx");
+}
+
+// File -> daftar objek (baris pertama = nama kolom). Pemeriksaan isi dilakukan server.
+async function bacaFileSoal(file) {
+  const nama = file.name.toLowerCase();
+  if (nama.endsWith(".csv")) return CsvParser.parseToObjects(await file.text());
+  if (typeof XLSX === "undefined") throw new Error("Pembaca Excel tidak termuat. Simpan file sebagai CSV lalu coba lagi.");
+  const wb = XLSX.read(await file.arrayBuffer(), { type: "array" });
+  // blankrows:true menjaga nomor baris di laporan galat tetap sama dengan nomor baris di Excel
+  return XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: "", raw: false, blankrows: true });
+}
+
+// Tahap 1: periksa (dryRun) dan tampilkan ringkasan. Tahap 2: tombol "Impor" menyimpan.
+async function pratinjauImpor(rows, box, selesaiDiimpor) {
+  box.innerHTML = `<p class="empty">Memeriksa file…</p>`;
+  let hasil;
+  try {
+    hasil = await api("/api/guru/soal/impor", { method: "POST", body: JSON.stringify({ rows, dryRun: true }) });
+  } catch (e) {
+    box.innerHTML = `<p class="notice">${esc(e.message)}</p>`;
+    return;
+  }
+  box.innerHTML = "";
+  box.appendChild(el(`<p style="font-size:0.9rem;margin:4px 0 12px;"><strong>${hasil.jumlahValid}</strong> soal siap diimpor, <strong style="color:var(--danger)">${hasil.galat.length}</strong> baris bermasalah (dari ${hasil.totalBaris} baris terbaca).</p>`));
+
+  if (hasil.galat.length) {
+    const rowsGalat = hasil.galat.map((g) => el(`<tr>${td(g.baris)}${td(esc(g.alasan))}</tr>`));
+    box.appendChild(el(`<p style="font-size:0.82rem;color:var(--ink-soft);margin:0 0 6px;">Baris bermasalah akan dilewati. Perbaiki di file lalu pilih ulang jika ingin ikut diimpor.</p>`));
+    box.appendChild(simpleTable(["Baris", "Masalah"], rowsGalat));
+  }
+  if (hasil.jumlahValid > 0) {
+    const btn = el(`<button class="btn btn-accent">Impor ${hasil.jumlahValid} Soal</button>`);
+    btn.addEventListener("click", async () => {
+      btn.disabled = true; btn.textContent = "Mengimpor…";
+      try {
+        const r = await api("/api/guru/soal/impor", { method: "POST", body: JSON.stringify({ rows }) });
+        box.innerHTML = `<p class="notice ok">Berhasil mengimpor ${r.jumlahDiimpor} soal.</p>`;
+        selesaiDiimpor();
+      } catch (e) {
+        btn.disabled = false; btn.textContent = `Impor ${hasil.jumlahValid} Soal`;
+        box.appendChild(el(`<p class="notice">${esc(e.message)}</p>`));
+      }
+    });
+    box.appendChild(btn);
+  }
+}
+
 async function renderGuruSoal(wrap) {
   wrap.appendChild(el(`<h2 class="section-title">Kelola Bank Soal</h2>`));
   const listBox = el(`<div><p class="empty">Memuat…</p></div>`);
   wrap.appendChild(listBox);
 
   const mapel = await api("/api/admin/mapel");
-  const mapelOptions = mapel.map((m) => `<option value="${m.mapel_id}">${m.nama_mapel}</option>`).join("");
+  const mapelOptions = mapel.map((m) => `<option value="${m.mapel_id}">${esc(m.nama_mapel)}</option>`).join("");
 
   const formCard = el(`
     <div class="card">
-      <h3>Tambah Soal</h3>
+      <h3 id="s-judul">Tambah Soal</h3>
       <div class="field-row">
         <div class="field"><label>Mata Pelajaran</label><select id="s-mapel">${mapelOptions}</select></div>
         <div class="field"><label>Tingkat Kesulitan</label>
@@ -353,48 +443,119 @@ async function renderGuruSoal(wrap) {
       </div>
       <div class="field"><label>Kunci Jawaban</label><select id="s-kunci"><option>A</option><option>B</option><option>C</option><option>D</option></select></div>
       <div id="s-err"></div>
-      <button class="btn btn-primary" id="s-submit">Simpan Soal</button>
+      <div class="row-actions">
+        <button class="btn btn-primary" id="s-submit">Simpan Soal</button>
+        <button class="btn btn-outline" id="s-batal" style="display:none;">Batal</button>
+      </div>
     </div>
   `);
   wrap.appendChild(formCard);
 
+  const importCard = el(`
+    <div class="card">
+      <h3>Impor Soal dari Excel / CSV</h3>
+      <p class="lead" style="margin-top:0;margin-bottom:12px;">Baris pertama berisi nama kolom: <code>mapel, pertanyaan, opsi_a, opsi_b, opsi_c, opsi_d, kunci, tingkat_kesulitan</code>. Nama mapel harus sudah terdaftar. Maksimal 500 baris per file. Soal yang diimpor menjadi milikmu.</p>
+      <div class="row-actions" style="margin-bottom:14px;">
+        <button class="btn btn-outline btn-sm" id="im-tpl-xlsx">Unduh template Excel</button>
+        <button class="btn btn-outline btn-sm" id="im-tpl-csv">Unduh template CSV</button>
+      </div>
+      <div class="field"><label>Pilih file (.xlsx, .xls, atau .csv)</label><input type="file" id="im-file" accept=".xlsx,.xls,.csv" /></div>
+      <div id="im-hasil"></div>
+    </div>
+  `);
+  wrap.appendChild(importCard);
+
+  let editId = null;
+  const f = (id) => formCard.querySelector(id);
+  function resetForm() {
+    editId = null;
+    f("#s-judul").textContent = "Tambah Soal";
+    f("#s-submit").textContent = "Simpan Soal";
+    f("#s-batal").style.display = "none";
+    f("#s-mapel").disabled = false;
+    ["#s-pertanyaan", "#s-a", "#s-b", "#s-c", "#s-d"].forEach((sel) => (f(sel).value = ""));
+    f("#s-err").innerHTML = "";
+  }
+  function mulaiUbah(s) {
+    editId = s.soal_id;
+    f("#s-judul").textContent = "Ubah Soal";
+    f("#s-submit").textContent = "Simpan Perubahan";
+    f("#s-batal").style.display = "";
+    f("#s-mapel").value = s.mapel_id; f("#s-mapel").disabled = true; // mapel tidak diubah di sini
+    f("#s-level").value = s.tingkat_kesulitan;
+    f("#s-pertanyaan").value = s.pertanyaan;
+    f("#s-a").value = s.opsi_a; f("#s-b").value = s.opsi_b; f("#s-c").value = s.opsi_c; f("#s-d").value = s.opsi_d;
+    f("#s-kunci").value = s.kunci;
+    formCard.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
   async function reload() {
     const soal = await api("/api/guru/soal");
+    const saya = state.user.users_id;
     const rows = soal.map((s) => {
+      const milikSaya = s.guru_id === saya;
       const tr = el(`<tr>
-        ${td(s.nama_mapel)}${td(`L${s.tingkat_kesulitan}`)}${td(s.pertanyaan.slice(0, 60) + (s.pertanyaan.length > 60 ? "…" : ""))}${td(s.kunci)}
-        <td class="row-actions"><button class="btn btn-sm btn-danger" data-id="${s.soal_id}">Hapus</button></td>
+        ${td(esc(s.nama_mapel))}${td(`L${s.tingkat_kesulitan}`)}
+        ${td(esc(s.pertanyaan.length > 60 ? s.pertanyaan.slice(0, 60) + "…" : s.pertanyaan))}${td(s.kunci)}
+        ${td(milikSaya ? `<span class="badge good">Kamu</span>` : esc(s.nama_guru || "—"))}
+        <td class="row-actions"></td>
       </tr>`);
-      tr.querySelector("button").addEventListener("click", async () => {
-        if (!confirm("Hapus soal ini?")) return;
-        await api(`/api/guru/soal/${s.soal_id}`, { method: "DELETE" });
-        reload();
-      });
+      const aksi = tr.querySelector(".row-actions");
+      if (milikSaya) {
+        const ubah = el(`<button class="btn btn-sm btn-outline">Ubah</button>`);
+        ubah.addEventListener("click", () => mulaiUbah(s));
+        const hapus = el(`<button class="btn btn-sm btn-danger">Hapus</button>`);
+        hapus.addEventListener("click", async () => {
+          if (!confirm("Hapus soal ini?")) return;
+          try {
+            await api(`/api/guru/soal/${s.soal_id}`, { method: "DELETE" });
+            if (editId === s.soal_id) resetForm();
+            reload();
+          } catch (e) { alert(e.message); }
+        });
+        aksi.appendChild(ubah); aksi.appendChild(hapus);
+      } else {
+        aksi.appendChild(el(`<span style="font-size:0.74rem;color:var(--ink-soft);">Milik guru lain</span>`));
+      }
       return tr;
     });
     listBox.innerHTML = "";
-    listBox.appendChild(simpleTable(["Mapel", "Level", "Pertanyaan", "Kunci", ""], rows));
+    listBox.appendChild(simpleTable(["Mapel", "Level", "Pertanyaan", "Kunci", "Pembuat", ""], rows));
   }
 
-  formCard.querySelector("#s-submit").addEventListener("click", async () => {
+  f("#s-batal").addEventListener("click", resetForm);
+  f("#s-submit").addEventListener("click", async () => {
     const body = {
-      mapel_id: formCard.querySelector("#s-mapel").value,
-      tingkat_kesulitan: Number(formCard.querySelector("#s-level").value),
-      pertanyaan: formCard.querySelector("#s-pertanyaan").value.trim(),
-      opsi_a: formCard.querySelector("#s-a").value.trim(),
-      opsi_b: formCard.querySelector("#s-b").value.trim(),
-      opsi_c: formCard.querySelector("#s-c").value.trim(),
-      opsi_d: formCard.querySelector("#s-d").value.trim(),
-      kunci: formCard.querySelector("#s-kunci").value,
+      mapel_id: f("#s-mapel").value,
+      tingkat_kesulitan: Number(f("#s-level").value),
+      pertanyaan: f("#s-pertanyaan").value.trim(),
+      opsi_a: f("#s-a").value.trim(), opsi_b: f("#s-b").value.trim(),
+      opsi_c: f("#s-c").value.trim(), opsi_d: f("#s-d").value.trim(),
+      kunci: f("#s-kunci").value,
     };
-    const errBox = formCard.querySelector("#s-err");
+    const errBox = f("#s-err");
     errBox.innerHTML = "";
     try {
-      await api("/api/guru/soal", { method: "POST", body: JSON.stringify(body) });
-      ["#s-pertanyaan", "#s-a", "#s-b", "#s-c", "#s-d"].forEach((sel) => (formCard.querySelector(sel).value = ""));
+      if (editId) await api(`/api/guru/soal/${editId}`, { method: "PUT", body: JSON.stringify(body) });
+      else await api("/api/guru/soal", { method: "POST", body: JSON.stringify(body) });
+      resetForm();
       reload();
     } catch (e) {
-      errBox.appendChild(el(`<p class="notice">${e.message}</p>`));
+      errBox.appendChild(el(`<p class="notice">${esc(e.message)}</p>`));
+    }
+  });
+
+  importCard.querySelector("#im-tpl-xlsx").addEventListener("click", unduhTemplateXlsx);
+  importCard.querySelector("#im-tpl-csv").addEventListener("click", unduhTemplateCsv);
+  const hasilBox = importCard.querySelector("#im-hasil");
+  importCard.querySelector("#im-file").addEventListener("change", async (ev) => {
+    const file = ev.target.files[0];
+    if (!file) return;
+    try {
+      const rows = await bacaFileSoal(file);
+      await pratinjauImpor(rows, hasilBox, () => { ev.target.value = ""; reload(); });
+    } catch (e) {
+      hasilBox.innerHTML = `<p class="notice">${esc(e.message)}</p>`;
     }
   });
 
@@ -407,8 +568,8 @@ async function renderGuruTes(wrap) {
   wrap.appendChild(listBox);
 
   const [mapel, kelas] = await Promise.all([api("/api/admin/mapel"), api("/api/admin/kelas")]);
-  const mapelOptions = mapel.map((m) => `<option value="${m.mapel_id}">${m.nama_mapel}</option>`).join("");
-  const kelasOptions = `<option value="">Semua kelas</option>` + kelas.map((k) => `<option value="${k.kelas_id}">${k.nama_kelas}</option>`).join("");
+  const mapelOptions = mapel.map((m) => `<option value="${m.mapel_id}">${esc(m.nama_mapel)}</option>`).join("");
+  const kelasOptions = `<option value="">Semua kelas</option>` + kelas.map((k) => `<option value="${k.kelas_id}">${esc(k.nama_kelas)}</option>`).join("");
 
   const formCard = el(`
     <div class="card">
@@ -434,7 +595,7 @@ async function renderGuruTes(wrap) {
     const tes = await api("/api/guru/tes");
     const rows = tes.map((t) => {
       const tr = el(`<tr>
-        ${td(t.judul)}${td(t.nama_mapel)}${td(t.nama_kelas || "Semua kelas")}${td(t.jumlah_soal)}${td(t.durasi_menit + " menit")}${td(t.tanggal)}
+        ${td(esc(t.judul))}${td(esc(t.nama_mapel))}${td(esc(t.nama_kelas || "Semua kelas"))}${td(t.jumlah_soal)}${td(t.durasi_menit + " menit")}${td(t.tanggal)}
         <td class="row-actions"><button class="btn btn-sm btn-danger" data-id="${t.tes_id}">Hapus</button></td>
       </tr>`);
       tr.querySelector("button").addEventListener("click", async () => {
@@ -464,7 +625,7 @@ async function renderGuruTes(wrap) {
       formCard.querySelector("#t-judul").value = "";
       reload();
     } catch (e) {
-      errBox.appendChild(el(`<p class="notice">${e.message}</p>`));
+      errBox.appendChild(el(`<p class="notice">${esc(e.message)}</p>`));
     }
   });
 
@@ -477,7 +638,7 @@ async function renderGuruKuesioner(wrap) {
   const selCard = el(`
     <div class="card">
       <div class="field"><label>Pilih Tes</label>
-        <select id="kq-tes">${tesList.map((t) => `<option value="${t.tes_id}">${t.judul}</option>`).join("")}</select>
+        <select id="kq-tes">${tesList.map((t) => `<option value="${t.tes_id}">${esc(t.judul)}</option>`).join("")}</select>
       </div>
     </div>
   `);
@@ -490,8 +651,8 @@ async function renderGuruKuesioner(wrap) {
     if (!tesId) return;
     const existing = await api(`/api/guru/kuesioner/${tesId}`);
     if (existing) {
-      box.appendChild(el(`<div class="card"><h3>${existing.judul}</h3></div>`));
-      const rows = existing.pertanyaan.map((p, i) => el(`<tr>${td(i + 1)}${td(p.soal)}</tr>`));
+      box.appendChild(el(`<div class="card"><h3>${esc(existing.judul)}</h3></div>`));
+      const rows = existing.pertanyaan.map((p, i) => el(`<tr>${td(i + 1)}${td(esc(p.soal))}</tr>`));
       box.appendChild(simpleTable(["No", "Pernyataan"], rows));
       box.appendChild(el(`<p class="lead">Kuesioner untuk tes ini sudah dibuat.</p>`));
       return;
@@ -524,7 +685,7 @@ async function renderGuruKuesioner(wrap) {
         });
         loadFor(tesId);
       } catch (e) {
-        errBox.appendChild(el(`<p class="notice">${e.message}</p>`));
+        errBox.appendChild(el(`<p class="notice">${esc(e.message)}</p>`));
       }
     });
     box.appendChild(formCard);
@@ -546,7 +707,7 @@ async function renderGuruHasil(wrap) {
   } else {
     const rows = hasil.map((h) => {
       const cls = h.nilai >= 70 ? "good" : h.nilai >= 55 ? "mid" : "low";
-      return el(`<tr>${td(h.nama)}${td(h.nama_kelas || "—")}${td(h.judul_tes)}${td(h.nilai)}${td(`<span class="badge ${cls}">Level ${h.level_akhir}</span>`)}${td(fmtTanggal(h.selesai))}</tr>`);
+      return el(`<tr>${td(esc(h.nama))}${td(esc(h.nama_kelas || "—"))}${td(esc(h.judul_tes))}${td(h.nilai)}${td(`<span class="badge ${cls}">Level ${h.level_akhir}</span>`)}${td(fmtTanggal(h.selesai))}</tr>`);
     });
     hasilBox.innerHTML = "";
     hasilBox.appendChild(simpleTable(["Nama", "Kelas", "Tes", "Nilai", "Level Akhir", "Selesai"], rows));
@@ -557,7 +718,7 @@ async function renderGuruHasil(wrap) {
   const selCard = el(`
     <div class="card">
       <div class="field"><label>Pilih Tes</label>
-        <select id="fb-tes">${tesList.map((t) => `<option value="${t.tes_id}">${t.judul}</option>`).join("")}</select>
+        <select id="fb-tes">${tesList.map((t) => `<option value="${t.tes_id}">${esc(t.judul)}</option>`).join("")}</select>
       </div>
     </div>
   `);
@@ -577,7 +738,7 @@ async function renderGuruHasil(wrap) {
     fb.rataRata.forEach((r) => {
       if (r.rata === null) return;
       fbBox.appendChild(el(`<div class="bar-row">
-        <div class="bar-label">${r.pernyataan}</div>
+        <div class="bar-label">${esc(r.pernyataan)}</div>
         <div class="bar-track"><div class="bar-fill" style="width:${(r.rata / 5) * 100}%"></div></div>
         <div class="bar-val">${r.rata}</div>
       </div>`));
@@ -585,7 +746,7 @@ async function renderGuruHasil(wrap) {
     if (fb.komentar.length) {
       fbBox.appendChild(el(`<h3 style="margin-top:20px;font-size:0.9rem;">Komentar</h3>`));
       fb.komentar.forEach((k) => {
-        fbBox.appendChild(el(`<div class="komentar-item"><div class="siapa">${k.nama}${k.nama_kelas ? " · " + k.nama_kelas : ""}</div><div>${k.komentar}</div></div>`));
+        fbBox.appendChild(el(`<div class="komentar-item"><div class="siapa">${esc(k.nama)}${k.nama_kelas ? " · " + esc(k.nama_kelas) : ""}</div><div>${esc(k.komentar)}</div></div>`));
       });
     }
   }
@@ -618,8 +779,8 @@ function screenSiswaTesList() {
     list.forEach((t) => {
       const card = el(`
         <div class="card">
-          <h3 style="margin-bottom:4px;">${t.judul}</h3>
-          <p class="lead" style="margin-top:0;margin-bottom:14px;">${t.nama_mapel} · ${t.jumlah_soal} soal · ${t.durasi_menit} menit · ${t.tanggal}</p>
+          <h3 style="margin-bottom:4px;">${esc(t.judul)}</h3>
+          <p class="lead" style="margin-top:0;margin-bottom:14px;">${esc(t.nama_mapel)} · ${t.jumlah_soal} soal · ${t.durasi_menit} menit · ${t.tanggal}</p>
         </div>
       `);
       if (t.status_saya === "selesai") {
@@ -636,10 +797,57 @@ function screenSiswaTesList() {
   return root;
 }
 
+// ---------- Timer tes: server = sumber kebenaran, peramban hanya menampilkan ----------
+function setDeadline(sisaDetik) {
+  if (typeof sisaDetik === "number") state.deadlineMs = Date.now() + sisaDetik * 1000;
+}
+function fmtWaktu(detik) {
+  const d = Math.max(0, detik);
+  return String(Math.floor(d / 60)).padStart(2, "0") + ":" + String(d % 60).padStart(2, "0");
+}
+function mulaiTimer() {
+  clearInterval(state.timerId);
+  const tick = () => {
+    const sisa = Math.ceil((state.deadlineMs - Date.now()) / 1000);
+    const t = document.getElementById("timer");
+    if (t) { t.textContent = fmtWaktu(sisa); t.classList.toggle("warn", sisa <= 60); }
+    if (sisa <= 0) { clearInterval(state.timerId); waktuHabis(); }
+  };
+  tick();
+  state.timerId = setInterval(tick, 1000);
+}
+function tampilkanHasil(hasil) {
+  state.hasilTes = hasil;
+  state.sesiId = hasil.sesiId;
+  state.screen = "siswa-result";
+  render();
+}
+// Hitung mundur mencapai nol: minta server menutup sesi. Server yang menentukan;
+// kalau jam perangkat meleset dan waktu sebenarnya belum habis, lanjutkan tes.
+async function waktuHabis() {
+  const btn = document.getElementById("lanjut");
+  const err = document.getElementById("err");
+  if (btn) btn.disabled = true;
+  if (err) err.innerHTML = `<p class="notice">Waktu habis. Menyimpan hasilmu…</p>`;
+  try {
+    const data = await api(`/api/siswa/sesi/${state.sesiId}/selesai`, { method: "POST" });
+    if (data.selesai) return tampilkanHasil(data.hasil);
+    setDeadline(data.sisaDetik);
+    mulaiTimer();
+    if (err) err.innerHTML = "";
+    if (btn && document.querySelector(".opsi.selected")) btn.disabled = false;
+  } catch (e) {
+    if (err) err.innerHTML = `<p class="notice">${esc(e.message)}</p>`;
+  }
+}
+
 async function mulaiTes(tesId) {
   try {
     const data = await api(`/api/siswa/tes/${tesId}/mulai`, { method: "POST" });
-    state.sesiId = data.sesiId; state.soalAktif = data.soal; state.progress = data.progress; state.tesAktif = tesId;
+    state.tesAktif = tesId;
+    if (data.selesai) return tampilkanHasil(data.hasil); // sesi lama yang waktunya sudah habis
+    state.sesiId = data.sesiId; state.soalAktif = data.soal; state.progress = data.progress;
+    setDeadline(data.sisaDetik);
     state.screen = "siswa-test";
     render();
   } catch (e) {
@@ -656,9 +864,9 @@ function screenSiswaTest() {
 
   const wrap = el(`
     <div class="wrap">
-      <div class="progress-row"><span>Soal ke-${state.progress.jumlah + 1} dari ${state.progress.total}</span></div>
+      <div class="progress-row"><span>Soal ke-${state.progress.jumlah + 1} dari ${state.progress.total}</span><span class="timer" id="timer">--:--</span></div>
       <div class="progress-bar"><div style="width:${pct}%"></div></div>
-      <div class="soal-pertanyaan">${soal.pertanyaan}</div>
+      <div class="soal-pertanyaan">${esc(soal.pertanyaan)}</div>
       <div class="opsi-list"></div>
       <div id="err"></div>
       <button class="btn btn-primary btn-block" id="lanjut" disabled>Jawab &amp; Lanjut</button>
@@ -668,7 +876,7 @@ function screenSiswaTest() {
   let dipilih = null;
   const list = wrap.querySelector(".opsi-list");
   opsi.forEach(([huruf, teks]) => {
-    const opt = el(`<div class="opsi"><span class="huruf">${huruf}</span><span>${teks}</span></div>`);
+    const opt = el(`<div class="opsi"><span class="huruf">${huruf}</span><span>${esc(teks)}</span></div>`);
     opt.addEventListener("click", () => {
       dipilih = huruf;
       list.querySelectorAll(".opsi").forEach((o) => o.classList.remove("selected"));
@@ -685,17 +893,15 @@ function screenSiswaTest() {
       const data = await api(`/api/siswa/sesi/${state.sesiId}/jawab`, {
         method: "POST", body: JSON.stringify({ soalId: soal.soal_id, jawabanHuruf: dipilih }),
       });
-      if (data.selesai) {
-        state.hasilTes = data.hasil;
-        state.screen = "siswa-result";
-      } else {
-        state.soalAktif = data.soal; state.progress = data.progress;
-        state.screen = "siswa-test";
-      }
+      if (data.selesai) return tampilkanHasil(data.hasil);
+      state.soalAktif = data.soal; state.progress = data.progress;
+      setDeadline(data.sisaDetik);
+      state.screen = "siswa-test";
       render();
     } catch (e) {
+      if (/sudah selesai/i.test(e.message)) return waktuHabis(); // sesi ditutup server (mis. waktu habis)
       btn.disabled = false; btn.textContent = "Jawab & Lanjut";
-      wrap.querySelector("#err").appendChild(el(`<p class="notice">${e.message}</p>`));
+      wrap.querySelector("#err").appendChild(el(`<p class="notice">${esc(e.message)}</p>`));
     }
   });
 
@@ -714,6 +920,7 @@ function screenSiswaResult() {
         <div class="kategori">${h.kategori}</div>
       </div>
       <div class="hasil-meta"><span>Level akhir: ${h.levelAkhir}</span><span>${h.jumlahSoal} soal dijawab</span></div>
+      ${h.waktuHabis ? `<p class="notice" style="text-align:center;margin-top:16px;">Waktu habis. Nilai dihitung dari ${h.jumlahSoal} soal yang sempat dijawab, dari total ${h.jumlahTarget} soal.</p>` : ""}
       <button class="btn btn-accent btn-block" id="next" style="margin-top:28px;">Lanjutkan</button>
     </div>
   `);
@@ -733,7 +940,7 @@ function screenSiswaKuesioner() {
   root.appendChild(topbar());
   const wrap = el(`
     <div class="wrap">
-      <h2 style="margin-bottom:6px;">${state.kuesionerAktif.judul}</h2>
+      <h2 style="margin-bottom:6px;">${esc(state.kuesionerAktif.judul)}</h2>
       <p class="lead" style="margin-top:0;margin-bottom:10px;">Jawabanmu membantu guru meningkatkan pembelajaran.</p>
       <div id="likerts"></div>
       <div class="field" style="margin-top:20px;"><label>Saran atau komentar (opsional)</label><textarea id="komentar"></textarea></div>
@@ -745,7 +952,7 @@ function screenSiswaKuesioner() {
   state.kuesionerAktif.pertanyaan.forEach((p) => {
     const row = el(`
       <div class="likert-row">
-        <div class="p">${p.soal}</div>
+        <div class="p">${esc(p.soal)}</div>
         <div class="likert-scale"></div>
       </div>
     `);
@@ -778,7 +985,7 @@ function screenSiswaKuesioner() {
       state.screen = "siswa-done";
       render();
     } catch (e) {
-      errBox.appendChild(el(`<p class="notice">${e.message}</p>`));
+      errBox.appendChild(el(`<p class="notice">${esc(e.message)}</p>`));
     }
   });
 
@@ -811,7 +1018,7 @@ function screenSiswaRiwayat() {
     const box = wrap.querySelector("#box");
     box.innerHTML = "";
     if (list.length === 0) { box.appendChild(el(`<p class="empty">Belum ada tes yang diselesaikan.</p>`)); return; }
-    const rows = list.map((h) => el(`<tr>${td(h.judul_tes)}${td(h.nama_mapel)}${td(h.nilai)}${td("Level " + h.level_akhir)}${td(fmtTanggal(h.selesai))}</tr>`));
+    const rows = list.map((h) => el(`<tr>${td(esc(h.judul_tes))}${td(esc(h.nama_mapel))}${td(h.nilai)}${td("Level " + h.level_akhir)}${td(fmtTanggal(h.selesai))}</tr>`));
     box.appendChild(simpleTable(["Tes", "Mapel", "Nilai", "Level Akhir", "Selesai"], rows));
   });
   return root;

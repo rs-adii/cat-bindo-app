@@ -5,11 +5,13 @@ const { db } = require("./lib/db");
 const { seed } = require("./lib/seed");
 const auth = require("./lib/auth");
 const cat = require("./lib/catEngineLevel");
+const timer = require("./lib/timer");
+const soalImport = require("./lib/soalImport");
 
 seed(); // aman dipanggil berkali-kali, otomatis dilewati kalau sudah ada data
 
 const app = express();
-app.use(express.json());
+app.use(express.json({ limit: "2mb" })); // impor soal bisa memuat ratusan baris
 app.use(express.static(path.join(__dirname, "public")));
 
 function j(res, status, body) {
@@ -120,9 +122,14 @@ app.delete("/api/admin/mapel/:id", auth.requireRole("admin"), (req, res) => {
 });
 
 // ============================== GURU: Kelola Bank Soal ==============================
+const PESAN_BUKAN_PEMILIK = "Soal ini dibuat guru lain. Kamu hanya bisa mengubah atau menghapus soal milikmu sendiri.";
+
 app.get("/api/guru/soal", auth.requireRole("guru", "admin"), (req, res) => {
   const rows = db.prepare(`
-    SELECT s.*, m.nama_mapel FROM soal s JOIN mapel m ON m.mapel_id = s.mapel_id
+    SELECT s.*, m.nama_mapel, u.nama AS nama_guru
+    FROM soal s
+    JOIN mapel m ON m.mapel_id = s.mapel_id
+    LEFT JOIN users u ON u.users_id = s.guru_id
     ORDER BY s.mapel_id, s.tingkat_kesulitan
   `).all();
   j(res, 200, rows);
@@ -138,10 +145,42 @@ app.post("/api/guru/soal", auth.requireRole("guru"), (req, res) => {
   `).run(mapel_id, req.user.users_id, pertanyaan, opsi_a, opsi_b, opsi_c, opsi_d, kunci, tingkat_kesulitan);
   j(res, 200, { soal_id: info.lastInsertRowid });
 });
+
+// Impor massal dari Excel/CSV. Peramban membaca file jadi daftar objek;
+// validasi ada di lib/soalImport.js. dryRun=true hanya memeriksa (pratinjau).
+app.post("/api/guru/soal/impor", auth.requireRole("guru"), (req, res) => {
+  const { rows, dryRun } = req.body || {};
+  const hasil = soalImport.validasiSemua(
+    rows,
+    db.prepare("SELECT mapel_id, nama_mapel FROM mapel").all(),
+    db.prepare("SELECT mapel_id, pertanyaan FROM soal").all()
+  );
+  if (hasil.error) return j(res, 400, { error: hasil.error });
+
+  let jumlahDiimpor = 0;
+  if (!dryRun && hasil.valid.length > 0) {
+    const ins = db.prepare(`
+      INSERT INTO soal (mapel_id, guru_id, pertanyaan, opsi_a, opsi_b, opsi_c, opsi_d, kunci, tingkat_kesulitan)
+      VALUES (?,?,?,?,?,?,?,?,?)
+    `);
+    db.transaction(() => {
+      for (const { soal: x } of hasil.valid) {
+        ins.run(x.mapel_id, req.user.users_id, x.pertanyaan, x.opsi_a, x.opsi_b, x.opsi_c, x.opsi_d, x.kunci, x.tingkat_kesulitan);
+      }
+    })();
+    jumlahDiimpor = hasil.valid.length;
+  }
+  j(res, 200, {
+    dryRun: !!dryRun, totalBaris: hasil.total, jumlahValid: hasil.valid.length,
+    jumlahDiimpor, galat: hasil.galat, ringkas: hasil.ringkas,
+  });
+});
+
 app.put("/api/guru/soal/:id", auth.requireRole("guru"), (req, res) => {
   const f = req.body || {};
   const existing = db.prepare("SELECT * FROM soal WHERE soal_id=?").get(req.params.id);
   if (!existing) return j(res, 404, { error: "Soal tidak ditemukan." });
+  if (existing.guru_id !== req.user.users_id) return j(res, 403, { error: PESAN_BUKAN_PEMILIK });
   db.prepare(`
     UPDATE soal SET pertanyaan=?, opsi_a=?, opsi_b=?, opsi_c=?, opsi_d=?, kunci=?, tingkat_kesulitan=?
     WHERE soal_id=?
@@ -153,7 +192,17 @@ app.put("/api/guru/soal/:id", auth.requireRole("guru"), (req, res) => {
   j(res, 200, { ok: true });
 });
 app.delete("/api/guru/soal/:id", auth.requireRole("guru"), (req, res) => {
-  db.prepare("DELETE FROM soal WHERE soal_id = ?").run(req.params.id);
+  const existing = db.prepare("SELECT * FROM soal WHERE soal_id=?").get(req.params.id);
+  if (!existing) return j(res, 404, { error: "Soal tidak ditemukan." });
+  if (existing.guru_id !== req.user.users_id) return j(res, 403, { error: PESAN_BUKAN_PEMILIK });
+  try {
+    db.prepare("DELETE FROM soal WHERE soal_id = ?").run(req.params.id);
+  } catch (e) {
+    if (String(e.message).includes("FOREIGN KEY")) {
+      return j(res, 409, { error: "Soal ini sudah pernah dipakai dalam tes siswa, jadi tidak bisa dihapus." });
+    }
+    throw e;
+  }
   j(res, 200, { ok: true });
 });
 
@@ -206,6 +255,7 @@ app.post("/api/guru/kuesioner", auth.requireRole("guru"), (req, res) => {
 
 // ============================== GURU: Lihat hasil & rekap feedback ==============================
 app.get("/api/guru/hasil", auth.requireRole("guru", "admin"), (req, res) => {
+  sapuSesiKadaluarsa(); // sesi yang waktunya habis tapi siswanya tidak kembali ikut diselesaikan
   const rows = db.prepare(`
     SELECT st.sesites_id, u.nama, k.nama_kelas, t.judul AS judul_tes, st.nilai, st.level_akhir, st.status, st.mulai, st.selesai,
            (SELECT COUNT(*) FROM jawaban WHERE sesi_id = st.sesites_id) AS jumlah_soal_dijawab
@@ -255,7 +305,53 @@ app.get("/api/guru/feedback-summary/:tesId", auth.requireRole("guru", "admin"), 
 });
 
 // ============================== SISWA ==============================
+function jawabanSesi(sesiId) {
+  return db.prepare("SELECT * FROM jawaban WHERE sesi_id = ? ORDER BY urutan").all(sesiId);
+}
+function levelDariJawaban(js) {
+  if (js.length === 0) return cat.START_LEVEL;
+  const last = js[js.length - 1];
+  return cat.nextLevel(last.level_saat_itu, !!last.benar);
+}
+function bentukHasil(sesiId, nilai, levelAkhir, jumlahSoal, tes, waktuHabis) {
+  return {
+    sesiId, nilai, kategori: cat.kategoriNilai(nilai), levelAkhir,
+    jumlahSoal, jumlahTarget: tes.jumlah_soal, waktuHabis: !!waktuHabis,
+  };
+}
+// Menutup sesi. karenaWaktu=true: soal yang belum sempat dijawab dihitung salah
+// (penyebut = jumlah soal tes) dan waktu selesai dicatat sebagai tenggatnya.
+function finalisasiSesi(sesi, tes, { karenaWaktu }) {
+  const js = jawabanSesi(sesi.sesites_id);
+  const levelAkhir = levelDariJawaban(js);
+  const pembagi = karenaWaktu ? tes.jumlah_soal : js.length;
+  const nilai = cat.hitungNilai(js.map((r) => ({ benar: r.benar })), pembagi);
+  const selesaiAt = karenaWaktu
+    ? new Date(timer.tenggatMs(sesi.mulai, tes.durasi_menit)).toISOString()
+    : new Date().toISOString();
+  db.prepare("UPDATE sesi_tes SET status='selesai', nilai=?, level_akhir=?, selesai=? WHERE sesites_id=?")
+    .run(nilai, levelAkhir, selesaiAt, sesi.sesites_id);
+  return bentukHasil(sesi.sesites_id, nilai, levelAkhir, js.length, tes, karenaWaktu);
+}
+function hasilDariSesiSelesai(sesi, tes) {
+  const n = db.prepare("SELECT COUNT(*) AS n FROM jawaban WHERE sesi_id = ?").get(sesi.sesites_id).n;
+  return bentukHasil(sesi.sesites_id, sesi.nilai, sesi.level_akhir, n, tes, n < tes.jumlah_soal);
+}
+// Sesi 'ongoing' yang waktunya sudah lewat (siswa menutup tab / pergi) ditutup otomatis.
+function sapuSesiKadaluarsa() {
+  const rows = db.prepare(`
+    SELECT st.*, t.durasi_menit AS t_durasi, t.jumlah_soal AS t_jumlah
+    FROM sesi_tes st JOIN tes t ON t.tes_id = st.tes_id WHERE st.status = 'ongoing'
+  `).all();
+  for (const r of rows) {
+    if (timer.sisaDetik(r.mulai, r.t_durasi) <= -timer.GRACE_DETIK) {
+      finalisasiSesi(r, { jumlah_soal: r.t_jumlah, durasi_menit: r.t_durasi }, { karenaWaktu: true });
+    }
+  }
+}
+
 app.get("/api/siswa/tes-tersedia", auth.requireRole("siswa"), (req, res) => {
+  sapuSesiKadaluarsa();
   const rows = db.prepare(`
     SELECT t.tes_id, t.judul, t.jumlah_soal, t.durasi_menit, t.tanggal, m.nama_mapel,
            (SELECT status FROM sesi_tes WHERE tes_id = t.tes_id AND siswa_id = ? ORDER BY sesites_id DESC LIMIT 1) AS status_saya,
@@ -267,14 +363,6 @@ app.get("/api/siswa/tes-tersedia", auth.requireRole("siswa"), (req, res) => {
   j(res, 200, rows);
 });
 
-function hitungLevelSaatIni(sesiId) {
-  const last = db.prepare(
-    "SELECT level_saat_itu, benar FROM jawaban WHERE sesi_id = ? ORDER BY urutan DESC LIMIT 1"
-  ).get(sesiId);
-  if (!last) return cat.START_LEVEL;
-  return cat.nextLevel(last.level_saat_itu, !!last.benar);
-}
-
 app.post("/api/siswa/tes/:tesId/mulai", auth.requireRole("siswa"), (req, res) => {
   const tes = db.prepare("SELECT * FROM tes WHERE tes_id = ?").get(req.params.tesId);
   if (!tes) return j(res, 404, { error: "Tes tidak ditemukan." });
@@ -283,35 +371,37 @@ app.post("/api/siswa/tes/:tesId/mulai", auth.requireRole("siswa"), (req, res) =>
     "SELECT * FROM sesi_tes WHERE tes_id = ? AND siswa_id = ? AND status = 'ongoing'"
   ).get(tes.tes_id, req.user.users_id);
 
-  if (!sesi) {
+  if (sesi) {
+    // Melanjutkan sesi lama: kalau waktunya sudah habis, tutup dan tampilkan hasil.
+    if (timer.sisaDetik(sesi.mulai, tes.durasi_menit) <= 0) {
+      return j(res, 200, { selesai: true, hasil: finalisasiSesi(sesi, tes, { karenaWaktu: true }) });
+    }
+  } else {
     const sudahSelesai = db.prepare(
-      "SELECT * FROM sesi_tes WHERE tes_id = ? AND siswa_id = ? AND status = 'selesai'"
+      "SELECT 1 FROM sesi_tes WHERE tes_id = ? AND siswa_id = ? AND status = 'selesai'"
     ).get(tes.tes_id, req.user.users_id);
     if (sudahSelesai) return j(res, 400, { error: "Tes ini sudah pernah kamu selesaikan." });
 
-    const info = db.prepare(
-      "INSERT INTO sesi_tes (tes_id, siswa_id, status) VALUES (?,?, 'ongoing')"
-    ).run(tes.tes_id, req.user.users_id);
-    sesi = { sesites_id: info.lastInsertRowid };
+    const info = db.prepare("INSERT INTO sesi_tes (tes_id, siswa_id, status) VALUES (?,?, 'ongoing')")
+      .run(tes.tes_id, req.user.users_id);
+    sesi = db.prepare("SELECT * FROM sesi_tes WHERE sesites_id = ?").get(info.lastInsertRowid);
   }
 
   const pool = db.prepare("SELECT * FROM soal WHERE mapel_id = ?").all(tes.mapel_id);
-  const sudahDijawab = db.prepare("SELECT soal_id FROM jawaban WHERE sesi_id = ?").all(sesi.sesites_id);
-  const usedIds = new Set(sudahDijawab.map((r) => r.soal_id));
-  const jumlahTerjawab = sudahDijawab.length;
-
-  if (jumlahTerjawab >= tes.jumlah_soal) {
-    return j(res, 400, { error: "Sesi ini seharusnya sudah selesai, silakan muat ulang." });
+  const js = jawabanSesi(sesi.sesites_id);
+  if (js.length >= tes.jumlah_soal) {
+    return j(res, 200, { selesai: true, hasil: finalisasiSesi(sesi, tes, { karenaWaktu: false }) });
   }
 
-  const currentLevel = jumlahTerjawab === 0 ? cat.START_LEVEL : hitungLevelSaatIni(sesi.sesites_id);
-  const soalBerikut = cat.pickByLevel(pool, usedIds, currentLevel);
+  const soalBerikut = cat.pickByLevel(pool, new Set(js.map((r) => r.soal_id)), levelDariJawaban(js));
   if (!soalBerikut) return j(res, 400, { error: "Bank soal untuk mapel ini belum cukup." });
 
   j(res, 200, {
     sesiId: sesi.sesites_id,
     soal: cat.publicSoal(soalBerikut),
-    progress: { jumlah: jumlahTerjawab, total: tes.jumlah_soal },
+    progress: { jumlah: js.length, total: tes.jumlah_soal },
+    sisaDetik: timer.sisaDetik(sesi.mulai, tes.durasi_menit),
+    durasiMenit: tes.durasi_menit,
   });
 });
 
@@ -321,49 +411,63 @@ app.post("/api/siswa/sesi/:sesiId/jawab", auth.requireRole("siswa"), (req, res) 
   if (sesi.status !== "ongoing") return j(res, 400, { error: "Sesi ini sudah selesai." });
 
   const tes = db.prepare("SELECT * FROM tes WHERE tes_id = ?").get(sesi.tes_id);
+
+  // Waktu habis: jawaban ini tidak dihitung; sesi ditutup dan hasilnya dikembalikan.
+  if (timer.sisaDetik(sesi.mulai, tes.durasi_menit) < -timer.GRACE_DETIK) {
+    return j(res, 200, { selesai: true, hasil: finalisasiSesi(sesi, tes, { karenaWaktu: true }) });
+  }
+
   const { soalId, jawabanHuruf } = req.body || {};
   const soal = db.prepare("SELECT * FROM soal WHERE soal_id = ?").get(soalId);
   if (!soal) return j(res, 400, { error: "Soal tidak ditemukan." });
 
-  const sudah = db.prepare("SELECT 1 FROM jawaban WHERE sesi_id = ? AND soal_id = ?").get(sesi.sesites_id, soalId);
-  if (sudah) return j(res, 400, { error: "Soal ini sudah dijawab pada sesi ini." });
-
-  const urutan = db.prepare("SELECT COUNT(*) AS n FROM jawaban WHERE sesi_id = ?").get(sesi.sesites_id).n + 1;
-  const levelSaatIni = urutan === 1 ? cat.START_LEVEL : hitungLevelSaatIni(sesi.sesites_id);
-  const benar = jawabanHuruf === soal.kunci;
-
-  db.prepare(`
-    INSERT INTO jawaban (sesi_id, soal_id, jawaban, benar, level_saat_itu, urutan) VALUES (?,?,?,?,?,?)
-  `).run(sesi.sesites_id, soalId, jawabanHuruf, benar ? 1 : 0, levelSaatIni, urutan);
-
-  const levelBerikut = cat.nextLevel(levelSaatIni, benar);
-
-  function selesaikanSesi(jumlahSoalDijawab) {
-    const semuaJawaban = db.prepare("SELECT benar FROM jawaban WHERE sesi_id = ?").all(sesi.sesites_id);
-    const nilai = cat.hitungNilai(semuaJawaban.map((r) => ({ benar: r.benar })));
-    db.prepare(
-      "UPDATE sesi_tes SET status='selesai', nilai=?, level_akhir=?, selesai=datetime('now') WHERE sesites_id=?"
-    ).run(nilai, levelBerikut, sesi.sesites_id);
-    return { sesiId: sesi.sesites_id, nilai, kategori: cat.kategoriNilai(nilai), levelAkhir: levelBerikut, jumlahSoal: jumlahSoalDijawab };
+  const jsSebelum = jawabanSesi(sesi.sesites_id);
+  if (jsSebelum.some((r) => r.soal_id === soal.soal_id)) {
+    return j(res, 400, { error: "Soal ini sudah dijawab pada sesi ini." });
   }
 
+  const urutan = jsSebelum.length + 1;
+  const levelSaatIni = levelDariJawaban(jsSebelum);
+  const benar = jawabanHuruf === soal.kunci;
+  db.prepare(`
+    INSERT INTO jawaban (sesi_id, soal_id, jawaban, benar, level_saat_itu, urutan) VALUES (?,?,?,?,?,?)
+  `).run(sesi.sesites_id, soal.soal_id, jawabanHuruf, benar ? 1 : 0, levelSaatIni, urutan);
+
   if (urutan >= tes.jumlah_soal) {
-    return j(res, 200, { selesai: true, hasil: selesaikanSesi(urutan) });
+    return j(res, 200, { selesai: true, hasil: finalisasiSesi(sesi, tes, { karenaWaktu: false }) });
   }
 
   const pool = db.prepare("SELECT * FROM soal WHERE mapel_id = ?").all(tes.mapel_id);
-  const sudahDijawabIds = db.prepare("SELECT soal_id FROM jawaban WHERE sesi_id = ?").all(sesi.sesites_id);
-  const usedIds = new Set(sudahDijawabIds.map((r) => r.soal_id));
-  const soalBerikut = cat.pickByLevel(pool, usedIds, levelBerikut);
+  const usedIds = new Set([...jsSebelum.map((r) => r.soal_id), soal.soal_id]);
+  const soalBerikut = cat.pickByLevel(pool, usedIds, cat.nextLevel(levelSaatIni, benar));
   if (!soalBerikut) {
-    return j(res, 200, { selesai: true, hasil: selesaikanSesi(urutan), catatan: "Bank soal habis sebelum jumlah target tercapai." });
+    return j(res, 200, {
+      selesai: true, hasil: finalisasiSesi(sesi, tes, { karenaWaktu: false }),
+      catatan: "Bank soal habis sebelum jumlah target tercapai.",
+    });
   }
 
   j(res, 200, {
     selesai: false,
     soal: cat.publicSoal(soalBerikut),
     progress: { jumlah: urutan, total: tes.jumlah_soal },
+    sisaDetik: timer.sisaDetik(sesi.mulai, tes.durasi_menit),
   });
+});
+
+// Dipanggil peramban saat hitung mundur mencapai nol. Server yang memutuskan:
+// kalau waktu memang sudah habis, sesi ditutup; kalau belum (jam perangkat
+// tidak sinkron), kembalikan sisa waktu yang benar.
+app.post("/api/siswa/sesi/:sesiId/selesai", auth.requireRole("siswa"), (req, res) => {
+  const sesi = db.prepare("SELECT * FROM sesi_tes WHERE sesites_id = ?").get(req.params.sesiId);
+  if (!sesi || sesi.siswa_id !== req.user.users_id) return j(res, 404, { error: "Sesi tidak ditemukan." });
+  const tes = db.prepare("SELECT * FROM tes WHERE tes_id = ?").get(sesi.tes_id);
+
+  if (sesi.status === "selesai") return j(res, 200, { selesai: true, hasil: hasilDariSesiSelesai(sesi, tes) });
+
+  const sisa = timer.sisaDetik(sesi.mulai, tes.durasi_menit);
+  if (sisa > 0) return j(res, 200, { selesai: false, sisaDetik: sisa });
+  j(res, 200, { selesai: true, hasil: finalisasiSesi(sesi, tes, { karenaWaktu: true }) });
 });
 
 app.get("/api/siswa/kuesioner/:tesId", auth.requireRole("siswa"), (req, res) => {

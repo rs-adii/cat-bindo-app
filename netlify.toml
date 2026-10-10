@@ -33,6 +33,11 @@
   to = "/.netlify/functions/admin-mapel"
   status = 200
 
+# "impor" harus sebelum :id, kalau tidak dianggap sebagai ID soal
+[[redirects]]
+  from = "/api/guru/soal/impor"
+  to = "/.netlify/functions/guru-soal-impor"
+  status = 200
 [[redirects]]
   from = "/api/guru/soal/:id"
   to = "/.netlify/functions/guru-soal"
@@ -83,6 +88,11 @@
 [[redirects]]
   from = "/api/siswa/sesi/:sesiId/jawab"
   to = "/.netlify/functions/siswa-jawab"
+  status = 200
+
+[[redirects]]
+  from = "/api/siswa/sesi/:sesiId/selesai"
+  to = "/.netlify/functions/siswa-selesai"
   status = 200
 
 [[redirects]]
