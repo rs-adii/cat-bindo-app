@@ -1,5 +1,5 @@
 const { getClient } = require("../../lib/supabaseClient");
-const { checkAuth } = require("../../lib/auth");
+const { cekAkses } = require("../../lib/netlifyBersama");
 const { json, parseBody, aman } = require("../../lib/httpHelpers");
 const { validasiSemua } = require("../../lib/soalImport");
 
@@ -7,7 +7,7 @@ const { validasiSemua } = require("../../lib/soalImport");
 // validasi ada di lib/soalImport.js. dryRun=true hanya memeriksa (pratinjau).
 exports.handler = aman(async (event) => {
   if (event.httpMethod !== "POST") return json(405, { error: "Method tidak diizinkan." });
-  const { user, errorResponse } = checkAuth(event, "guru");
+  const { user, errorResponse } = await cekAkses(event, "guru");
   if (errorResponse) return errorResponse;
   const { rows, dryRun } = parseBody(event);
   const supabase = getClient();

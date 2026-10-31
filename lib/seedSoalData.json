@@ -8,7 +8,8 @@
       "Apotic"
     ],
     "kunci": 1,
-    "level": 1
+    "level": 1,
+    "materi": "Ejaan"
   },
   {
     "pertanyaan": "Antonim dari kata 'optimis' adalah...",
@@ -19,7 +20,8 @@
       "Ragu-ragu"
     ],
     "kunci": 2,
-    "level": 1
+    "level": 1,
+    "materi": "Kosakata"
   },
   {
     "pertanyaan": "Sinonim yang tepat untuk kata 'cepat' adalah...",
@@ -30,7 +32,8 @@
       "Santai"
     ],
     "kunci": 1,
-    "level": 1
+    "level": 1,
+    "materi": "Kosakata"
   },
   {
     "pertanyaan": "Kalimat yang menggunakan huruf kapital dengan tepat adalah...",
@@ -41,7 +44,8 @@
       "Kami akan Berlibur ke Pulau Bali Bulan depan."
     ],
     "kunci": 1,
-    "level": 1
+    "level": 1,
+    "materi": "Ejaan"
   },
   {
     "pertanyaan": "Imbuhan yang tepat untuk melengkapi kalimat 'Ibu sedang ... nasi goreng di dapur' adalah...",
@@ -52,7 +56,8 @@
       "Termasak"
     ],
     "kunci": 0,
-    "level": 1
+    "level": 1,
+    "materi": "Tata Bahasa"
   },
   {
     "pertanyaan": "Kalimat yang paling efektif di antara pilihan berikut adalah...",
@@ -63,7 +68,8 @@
       "Para siswa sedang mengerjakan tugas-tugas mereka masing-masing."
     ],
     "kunci": 1,
-    "level": 2
+    "level": 1,
+    "materi": "Tata Bahasa"
   },
   {
     "pertanyaan": "(Bacaan: Setiap pagi, warga Desa Sukamaju bergotong royong membersihkan saluran air agar tidak tersumbat saat musim hujan tiba.) Paragraf tersebut termasuk jenis paragraf...",
@@ -74,7 +80,8 @@
       "Persuasif"
     ],
     "kunci": 2,
-    "level": 2
+    "level": 1,
+    "materi": "Membaca"
   },
   {
     "pertanyaan": "Kata penghubung yang tepat untuk melengkapi kalimat 'Andi rajin belajar, ... nilainya selalu baik' adalah...",
@@ -85,7 +92,8 @@
       "Atau"
     ],
     "kunci": 1,
-    "level": 2
+    "level": 2,
+    "materi": "Tata Bahasa"
   },
   {
     "pertanyaan": "Kalimat 'Suaranya menggelegar bagai petir di siang bolong' menggunakan majas...",
@@ -96,7 +104,8 @@
       "Hiperbola"
     ],
     "kunci": 2,
-    "level": 2
+    "level": 2,
+    "materi": "Sastra"
   },
   {
     "pertanyaan": "Kalimat berikut yang termasuk kalimat baku adalah...",
@@ -107,7 +116,8 @@
       "Ia bilang besok tidak masuk sekolah kayaknya."
     ],
     "kunci": 1,
-    "level": 3
+    "level": 2,
+    "materi": "Tata Bahasa"
   },
   {
     "pertanyaan": "(Bacaan: Literasi digital menjadi keterampilan penting di era sekarang. Siswa dituntut mampu memilah informasi yang benar dari yang menyesatkan.) Ide pokok paragraf tersebut adalah...",
@@ -118,7 +128,8 @@
       "Siswa dilarang menggunakan internet."
     ],
     "kunci": 1,
-    "level": 3
+    "level": 2,
+    "materi": "Membaca"
   },
   {
     "pertanyaan": "Penulisan kata serapan yang tepat adalah...",
@@ -129,7 +140,8 @@
       "Analisys"
     ],
     "kunci": 1,
-    "level": 3
+    "level": 2,
+    "materi": "Ejaan"
   },
   {
     "pertanyaan": "Struktur teks eksposisi yang tepat secara berurutan adalah...",
@@ -140,7 +152,8 @@
       "Abstrak, orientasi, krisis, reaksi, koda"
     ],
     "kunci": 0,
-    "level": 3
+    "level": 2,
+    "materi": "Menulis"
   },
   {
     "pertanyaan": "Kalimat 'Angin berbisik lembut di telinga dedaunan' menggunakan majas...",
@@ -151,7 +164,8 @@
       "Ironi"
     ],
     "kunci": 1,
-    "level": 4
+    "level": 2,
+    "materi": "Sastra"
   },
   {
     "pertanyaan": "(Bacaan: Menabung sejak dini melatih siswa mengelola keuangan dengan bijak.) Simpulan yang tepat berdasarkan paragraf tersebut adalah...",
@@ -162,7 +176,8 @@
       "Menabung membuat siswa sulit membeli kebutuhan."
     ],
     "kunci": 1,
-    "level": 4
+    "level": 3,
+    "materi": "Membaca"
   },
   {
     "pertanyaan": "(Kutipan: Malam itu hujan turun deras. Rani duduk termenung di teras rumah kayu peninggalan neneknya...) Latar waktu dalam kutipan cerpen tersebut adalah...",
@@ -173,7 +188,8 @@
       "Sore hari"
     ],
     "kunci": 2,
-    "level": 4
+    "level": 3,
+    "materi": "Sastra"
   },
   {
     "pertanyaan": "(Kutipan puisi: Di ladang sunyi kutanam harap, setiap pagi kusirami dengan doa...) Tema yang paling sesuai dengan kutipan puisi tersebut adalah...",
@@ -184,7 +200,8 @@
       "Perpisahan dengan sahabat"
     ],
     "kunci": 1,
-    "level": 4
+    "level": 3,
+    "materi": "Sastra"
   },
   {
     "pertanyaan": "Kalimat berikut yang bermakna ambigu adalah...",
@@ -195,7 +212,8 @@
       "Adik menyapu halaman rumah setiap pagi."
     ],
     "kunci": 1,
-    "level": 5
+    "level": 3,
+    "materi": "Tata Bahasa"
   },
   {
     "pertanyaan": "(Bacaan: Vaksinasi terbukti secara ilmiah mampu menurunkan angka kematian... Namun menurut saya pemerintah semestinya lebih gencar mengedukasi masyarakat.) Kalimat yang berupa opini dalam paragraf tersebut adalah...",
@@ -206,7 +224,8 @@
       "Kedua kalimat merupakan opini"
     ],
     "kunci": 1,
-    "level": 5
+    "level": 3,
+    "materi": "Menulis"
   },
   {
     "pertanyaan": "Penggunaan tanda baca yang tepat terdapat pada kalimat...",
@@ -217,7 +236,8 @@
       "Ibu bertanya, \"kapan kamu pulang\"."
     ],
     "kunci": 0,
-    "level": 5
+    "level": 3,
+    "materi": "Ejaan"
   },
   {
     "pertanyaan": "(Paragraf: (1) Sampah plastik menjadi masalah lingkungan yang mendesak. (2) Banyak sekolah menerapkan program bebas plastik. (3) Plastik ditemukan pertama kali abad ke-19. (4) Program ini menumbuhkan kebiasaan ramah lingkungan.) Kalimat yang tidak padu ditunjukkan oleh nomor...",
@@ -228,6 +248,7 @@
       "(4)"
     ],
     "kunci": 2,
-    "level": 5
+    "level": 3,
+    "materi": "Membaca"
   }
 ]

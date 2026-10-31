@@ -1,4 +1,7 @@
 node_modules/
-data/siep.db
+data/*.db
+data/*.db-wal
+data/*.db-shm
 *.log
 .env
+.netlify/

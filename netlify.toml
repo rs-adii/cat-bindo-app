@@ -105,6 +105,14 @@
   status = 200
 
 [[redirects]]
+  from = "/api/siswa/hasil/:sesiId"
+  to = "/.netlify/functions/siswa-hasil"
+  status = 200
+[[redirects]]
+  from = "/api/siswa/kuesioner-saya"
+  to = "/.netlify/functions/siswa-kuesioner-saya"
+  status = 200
+[[redirects]]
   from = "/api/siswa/hasil"
   to = "/.netlify/functions/siswa-hasil"
   status = 200
@@ -112,4 +120,17 @@
 [[redirects]]
   from = "/api/auth/login"
   to = "/.netlify/functions/auth-login"
+  status = 200
+
+[[redirects]]
+  from = "/api/auth/logout"
+  to = "/.netlify/functions/auth-logout"
+  status = 200
+[[redirects]]
+  from = "/api/auth/ubah-sandi"
+  to = "/.netlify/functions/auth-ubah-sandi"
+  status = 200
+[[redirects]]
+  from = "/api/pengaturan"
+  to = "/.netlify/functions/pengaturan"
   status = 200

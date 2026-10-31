@@ -1,12 +1,13 @@
 {
-  "name": "siep-smk",
-  "version": "2.0.0",
-  "description": "SIEP SMK v2 - sistem evaluasi pembelajaran dengan login 3 peran (Admin/Guru/Siswa), bank soal multi-mapel, dan tes adaptif berbasis level",
+  "name": "evalsmk",
+  "version": "3.0.0",
+  "description": "EvalSMK - sistem evaluasi pembelajaran SMK: login 3 peran (Admin/Guru/Siswa), bank soal multi-mapel, tes adaptif berbasis level, dan kuesioner feedback",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
     "dev": "node server.js",
-    "seed": "node lib/seed.js"
+    "seed": "node lib/seed.js",
+    "test": "node tests/uji-express.js && node tests/uji-netlify.js"
   },
   "dependencies": {
     "express": "^4.19.2",

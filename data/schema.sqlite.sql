@@ -27,7 +27,8 @@ CREATE TABLE IF NOT EXISTS users (
   username      TEXT NOT NULL UNIQUE,
   password_hash TEXT NOT NULL,
   role          TEXT NOT NULL CHECK (role IN ('admin','guru','siswa')),
-  kelas_id      INTEGER REFERENCES kelas(kelas_id)
+  kelas_id      INTEGER REFERENCES kelas(kelas_id),
+  aktif         INTEGER NOT NULL DEFAULT 1 CHECK (aktif IN (0,1))   -- 0 = dinonaktifkan admin (tidak bisa login)
 );
 
 CREATE TABLE IF NOT EXISTS soal (
@@ -40,7 +41,8 @@ CREATE TABLE IF NOT EXISTS soal (
   opsi_c             TEXT NOT NULL,
   opsi_d             TEXT NOT NULL,
   kunci              TEXT NOT NULL CHECK (kunci IN ('A','B','C','D')),
-  tingkat_kesulitan  INTEGER NOT NULL CHECK (tingkat_kesulitan BETWEEN 1 AND 5)
+  tingkat_kesulitan  INTEGER NOT NULL CHECK (tingkat_kesulitan BETWEEN 1 AND 3), -- 1 mudah, 2 sedang, 3 sulit
+  materi             TEXT                                                          -- topik/pokok bahasan (opsional)
 );
 
 CREATE TABLE IF NOT EXISTS tes (
@@ -99,3 +101,10 @@ CREATE INDEX IF NOT EXISTS idx_soal_mapel_level ON soal(mapel_id, tingkat_kesuli
 CREATE INDEX IF NOT EXISTS idx_jawaban_sesi ON jawaban(sesi_id);
 CREATE INDEX IF NOT EXISTS idx_sesi_tes_siswa ON sesi_tes(siswa_id);
 CREATE INDEX IF NOT EXISTS idx_respon_pertanyaan ON respon_kuesioner(pertanyaan_id);
+
+-- Pengaturan sekolah & aturan evaluasi (halaman Pengaturan admin).
+-- nilai disimpan sebagai JSON; kunci yang belum ada memakai nilai bawaan (lib/pengaturan.js).
+CREATE TABLE IF NOT EXISTS pengaturan (
+  kunci  TEXT PRIMARY KEY,
+  nilai  TEXT NOT NULL
+);

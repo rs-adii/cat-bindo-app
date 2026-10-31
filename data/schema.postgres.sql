@@ -18,7 +18,8 @@ create table if not exists users (
   username      text not null unique,
   password_hash text not null,
   role          text not null check (role in ('admin','guru','siswa')),
-  kelas_id      bigint references kelas(kelas_id)
+  kelas_id      bigint references kelas(kelas_id),
+  aktif         int not null default 1 check (aktif in (0,1))   -- 0 = dinonaktifkan admin (tidak bisa login)
 );
 
 create table if not exists soal (
@@ -31,7 +32,8 @@ create table if not exists soal (
   opsi_c             text not null,
   opsi_d             text not null,
   kunci              text not null check (kunci in ('A','B','C','D')),
-  tingkat_kesulitan  int not null check (tingkat_kesulitan between 1 and 5)
+  tingkat_kesulitan  int not null check (tingkat_kesulitan between 1 and 3), -- 1 mudah, 2 sedang, 3 sulit
+  materi             text                                                   -- topik/pokok bahasan (opsional)
 );
 
 create table if not exists tes (
@@ -102,3 +104,22 @@ alter table pertanyaan_kuesioner enable row level security;
 alter table sesi_tes enable row level security;
 alter table jawaban enable row level security;
 alter table respon_kuesioner enable row level security;
+
+-- Penanda versi skema. Pemasangan baru langsung memakai 3 level + kolom materi,
+-- jadi migrasi data/migrasi-tiga-level.postgres.sql tidak perlu dijalankan.
+create table if not exists skema_versi (
+  nama        text primary key,
+  diterapkan  timestamptz not null default now()
+);
+alter table skema_versi enable row level security;
+insert into skema_versi (nama) values ('tiga-level') on conflict do nothing;
+
+-- Pengaturan sekolah & aturan evaluasi (halaman Pengaturan admin).
+-- nilai disimpan sebagai JSON teks; kunci yang belum ada memakai nilai bawaan (lib/pengaturan.js).
+create table if not exists pengaturan (
+  kunci  text primary key,
+  nilai  text not null
+);
+alter table pengaturan enable row level security;
+insert into skema_versi (nama) values ('tampilan-baru') on conflict do nothing;
+
