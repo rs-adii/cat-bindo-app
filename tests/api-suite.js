@@ -193,7 +193,7 @@ async function jalankan(A, label) {
 
   // ---------------------------------------------------------------- 9. Kuesioner
   const kq = (await api("GET", `/api/siswa/kuesioner/${tes1.tes_id}`, null, tS1)).body;
-  cek(kq && kq.sudahDiisi === false && kq.pertanyaan.length === 5, "siswa melihat kuesioner belum diisi", kq);
+  cek(kq && kq.sudahDiisi === false && kq.pertanyaan.length === 9, "siswa melihat kuesioner belum diisi", kq);
   const isi = (skor) => kq.pertanyaan.map((p) => ({ pertanyaanId: p.pertanyaan_kuesioner_id, skor }));
   r = await api("POST", "/api/siswa/kuesioner/submit", { jawaban: isi(4) }, await masuk("siswa3", "siswa123"));
   cek(r.status === 403, "isi kuesioner sebelum menyelesaikan tes -> 403", r);

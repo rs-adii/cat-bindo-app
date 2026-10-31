@@ -168,6 +168,11 @@ menyatakan hal ini. Catatan teknis: basis data tetap menyimpan `siswa_id` pada
 basis data (mis. admin Supabase) tetap bisa menelusurinya; anonimitas berlaku
 pada antarmuka guru.
 
+Kuesioner baru otomatis berisi 9 pernyataan bawaan sesuai Bab III 3.2d. Database
+Supabase yang sudah berisi kuesioner contoh lama (5 pernyataan) bisa diperbarui
+dengan `data/perbarui-kuesioner-9-pernyataan.postgres.sql`; hanya kuesioner contoh
+yang belum pernah diisi siswa yang diganti.
+
 Server menolak pengisian kuesioner kedua oleh siswa yang sama (409) dan pengisian
 sebelum siswa menyelesaikan tesnya (403). Guru bisa mengubah judul kapan saja;
 pertanyaan hanya bisa diubah selama belum ada siswa yang mengisi, supaya rekap
@@ -380,6 +385,10 @@ baris mana yang bermasalah dan alasannya) sebelum apa pun disimpan.
 | **Anonimitas** kuesioner dijaga (2.6) | Ya pada antarmuka guru (lihat bagian Kuesioner anonim), dapat diatur admin |
 | Rekap otomatis dan visualisasi grafik (2.6) | Ya — rata-rata per pernyataan dalam bentuk batang |
 | Hasil evaluasi dan rekap feedback untuk guru (1.3 poin 9) | Ya |
+| Bab III 3.2d: kuesioner 8–10 pernyataan (penjelasan guru, metode, suasana kelas, kejelasan penilaian, kaitan dengan dunia kerja), Likert 1–5, saran, anonim | Ya — 9 pernyataan bawaan (`lib/kuesionerBawaan.js`), guru bisa mengubahnya |
+| Bab III 3.3 poin 4: satu halaman guru berisi nilai tes **dan** rata-rata kuesioner | Ya — halaman Hasil Siswa: nilai, rata-rata feedback, dan tabel nilai + feedback per tes |
+| Bab III 3.4: kata sandi terenkripsi, hak akses per peran, dipasang di hosting | Ya — kata sandi di-*hash* dengan bcrypt, 3 peran, Netlify + Supabase |
+| Bab III 3.5: skenario black box Tabel 3.4 | Ya — keenam skenario tercakup di `npm test` |
 | Tingkat kesulitan diperbarui dari proporsi siswa yang benar (2.4) | **Belum** — tidak ada halaman analisis butir |
 | Analisis hubungan capaian belajar dan persepsi siswa (2.6) | **Belum** — data terhubung lewat `respon_kuesioner.sesi_id`, tetapi belum ada tampilan analisisnya |
 | Perancangan: use case, flowchart, ERD (2.7) | Ya — lihat bagian Pemetaan ke diagram |

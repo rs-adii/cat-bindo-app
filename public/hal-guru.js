@@ -338,11 +338,17 @@
   });
 
   // ============================================================ KUESIONER
+  // Pernyataan bawaan sesuai Bab III 3.2d (sama dengan lib/kuesionerBawaan.js)
   const PERTANYAAN_BAWAAN = [
-    "Guru menguasai materi yang diajarkan",
-    "Penyampaian materi mudah dipahami",
-    "Media pembelajaran membantu saya belajar",
-    "Suasana kelas nyaman untuk belajar",
+    "Guru menjelaskan materi dengan jelas dan mudah dipahami.",
+    "Guru menguasai materi yang diajarkan.",
+    "Metode mengajar guru membuat saya aktif belajar.",
+    "Media dan latihan soal membantu saya memahami materi.",
+    "Suasana kelas nyaman untuk belajar.",
+    "Saya merasa nyaman bertanya dan menyampaikan pendapat di kelas.",
+    "Cara guru menilai tugas dan tes jelas dan adil.",
+    "Soal tes sesuai dengan materi yang telah diajarkan.",
+    "Materi yang dipelajari berkaitan dengan kebutuhan dunia kerja.",
   ];
   daftar("guru", "kuesioner", {
     judul: "Kelola Kuesioner",
@@ -437,11 +443,20 @@
   // ============================================================ HASIL SISWA
   daftar("guru", "hasil", {
     judul: "Hasil Tes Siswa",
-    sub: "Nilai dan level akhir setiap siswa",
+    sub: "Nilai tes dan rata-rata feedback siswa dalam satu laporan",
     async render(isi) {
       kosongkan(isi, memuat());
       const [tesAwal, hasil] = await Promise.all([api("/api/guru/tes"), api("/api/guru/hasil")]);
       const tes = urutTes(tesAwal);
+      // Laporan terpadu (Bab III 3.3 poin 4): nilai tes + rata-rata kuesioner per tes
+      const fbList = await Promise.all(tes.map((t) => api(`/api/guru/feedback-summary/${t.tes_id}`).catch(() => null)));
+      const fbPerTes = {};
+      tes.forEach((t, i) => {
+        const fb = fbList[i];
+        const terisi = fb ? fb.rataRata.filter((r) => r.rata !== null) : [];
+        fbPerTes[t.tes_id] = { ada: !!(fb && fb.ada !== false && fb.rataRata.length), rata: terisi.length ? rata(terisi.map((r) => r.rata)) : null, responden: fb ? fb.jumlahResponden : 0 };
+      });
+      const teksFb = (f) => (f && f.rata !== null ? `${bulat1(f.rata)}/5` : "-");
       const wadah = h("div.isi");
       function gambar(tesId) {
         const t = tes.find((x) => String(x.tes_id) === String(tesId));
@@ -450,6 +465,14 @@
         const berjalan = baris.filter((r) => r.status !== "selesai");
         const nilai = selesai.map((r) => r.nilai);
         const judul = t ? `${t.judul} · ${t.nama_kelas || "Semua kelas"}` : "Semua tes";
+        // Rata-rata feedback: tes terpilih, atau rata-rata semua tes ditimbang jumlah responden
+        let fbRingkas;
+        if (t) fbRingkas = fbPerTes[t.tes_id];
+        else {
+          const ada = tes.map((x) => fbPerTes[x.tes_id]).filter((f) => f.rata !== null && f.responden > 0);
+          const n = ada.reduce((a, f) => a + f.responden, 0);
+          fbRingkas = { rata: n ? ada.reduce((a, f) => a + f.rata * f.responden, 0) / n : null, responden: n };
+        }
         const unduh = () => {
           const kepala = ["Siswa", "Kelas", "Tes", "Level akhir", "Nilai", "Selesai"];
           const csv = [kepala, ...selesai.map((r) => [r.nama, r.nama_kelas || "", r.judul_tes, namaLevel(r.level_akhir), r.nilai, r.selesai || ""])]
@@ -457,10 +480,20 @@
           unduhBerkas(`hasil-${(t ? t.judul : "semua-tes").replace(/[^\w-]+/g, "-").toLowerCase()}.csv`, "﻿" + csv, "text/csv;charset=utf-8");
         };
         kosongkan(wadah,
-          h("div.grid.g-kpi-3",
+          h("div.grid.g-kpi-4",
             kpi("Rata-rata nilai", nilai.length ? bulat(rata(nilai)) : "-", "teal"),
             kpi("Selesai", selesai.length, "navy"),
-            kpi("Sedang mengerjakan", berjalan.length, "amber")),
+            kpi("Sedang mengerjakan", berjalan.length, "amber"),
+            kpi("Rata-rata feedback", teksFb(fbRingkas), "teal", fbRingkas.responden ? `${fbRingkas.responden} responden` : "")),
+          t ? null : kartu("Nilai dan feedback per tes", { aksi: h("button.tautan", { type: "button", onclick: () => pergi("guru/feedback") }, "Rekap feedback lengkap") },
+            tabel([
+              { judul: "Tes", isi: (x) => x.judul, kelas: "tebal", utama: true },
+              { judul: "Kelas", isi: (x) => x.nama_kelas || "Semua" },
+              { judul: "Selesai", isi: (x) => String(selesaiSaja(hasilUntuk(hasil, x)).length) },
+              { judul: "Rata-rata nilai", isi: (x) => { const n = selesaiSaja(hasilUntuk(hasil, x)).map((r) => r.nilai); return n.length ? bulat(rata(n)) : "-"; } },
+              { judul: "Rata-rata feedback", isi: (x) => (fbPerTes[x.tes_id].ada ? teksFb(fbPerTes[x.tes_id]) : "Tanpa kuesioner") },
+              { judul: "Responden", isi: (x) => String(fbPerTes[x.tes_id].responden || 0) },
+            ], tes, { kosong: "Belum ada jadwal tes." })),
           kartu(judul, { class: "isi-penuh", aksi: h("div.tombol-deret", h("span.catatan-kanan", "Level akhir ditentukan dari alur jawaban CAT"),
             selesai.length ? h("button.tombol.t-garis.t-kecil", { onclick: unduh }, "Unduh CSV") : null) },
             tabel([
