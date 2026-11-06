@@ -2,14 +2,15 @@ const { getClient } = require("../../lib/supabaseClient");
 const { json, parseBody, aman } = require("../../lib/httpHelpers");
 const { cekAkses, ambilPengaturan } = require("../../lib/netlifyBersama");
 const pengaturanLib = require("../../lib/pengaturan");
+const { saringPengaturan } = require("../../lib/daftar");
 
 // GET: semua peran (guru butuh bawaan jumlah soal/durasi). PUT: admin saja.
 exports.handler = aman(async (event) => {
   const supabase = getClient();
   if (event.httpMethod === "GET") {
-    const { errorResponse } = await cekAkses(event);
+    const { user, errorResponse } = await cekAkses(event);
     if (errorResponse) return errorResponse;
-    return json(200, await ambilPengaturan(supabase));
+    return json(200, saringPengaturan(await ambilPengaturan(supabase), user.role));
   }
   if (event.httpMethod === "PUT") {
     const { errorResponse } = await cekAkses(event, "admin");

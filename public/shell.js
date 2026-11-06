@@ -99,6 +99,24 @@
       }
     }
 
+    // Tautan "Daftar akun" muncul hanya kalau admin membuka pendaftaran
+    const kanan = h("section.login-kanan");
+    const ganti = h("p.login-ganti", { hidden: true }, "Belum punya akun? ",
+      h("button", { type: "button", onclick: () => kosongkan(kanan, formDaftar(infoDaftar, () => kosongkan(kanan, formLogin))) }, "Daftar akun"));
+    let infoDaftar = null;
+    global.UI.api("/api/auth/daftar").then((info) => { infoDaftar = info; ganti.hidden = !info.buka; }).catch(() => {});
+
+    const formLogin = h("form.login-form", { onsubmit: masuk, novalidate: false },
+      h("h2", "Masuk"),
+      h("p.sub", "Pilih peran lalu masuk ke akun Anda."),
+      tab,
+      h("div.isian", labelUser, inputUser),
+      h("div.isian", h("label", { for: "login-sandi" }, "Kata sandi"), inputSandi),
+      galat,
+      tombol,
+      ganti);
+    kosongkan(kanan, formLogin);
+
     return h("main.login",
       h("section.login-kiri",
         h("div.merek", h("span.merek-ikon", "E"), "EvalSMK"),
@@ -106,15 +124,82 @@
           h("h1", "Evaluasi yang menyesuaikan kemampuan setiap siswa."),
           h("p", "Bank soal, tes adaptif CAT, dan kuesioner feedback dalam satu sistem untuk SMK.")),
         h("p.login-kaki", "Capstone Project · Sistem Informasi · Universitas Terbuka")),
-      h("section.login-kanan",
-        h("form.login-form", { onsubmit: masuk, novalidate: false },
-          h("h2", "Masuk"),
-          h("p.sub", "Pilih peran lalu masuk ke akun Anda."),
-          tab,
-          h("div.isian", labelUser, inputUser),
-          h("div.isian", h("label", { for: "login-sandi" }, "Kata sandi"), inputSandi),
-          galat,
-          tombol)));
+      kanan);
+  }
+
+  // ------------------------------------------------------------------ daftar akun mandiri
+  // info: { buka, guruBisa, kelas[] } dari GET /api/auth/daftar. Admin tidak bisa daftar dari sini.
+  function formDaftar(info, kembali) {
+    info = info || { buka: false, guruBisa: false, kelas: [] };
+    let peran = "siswa";
+    const daftarPeran = info.guruBisa ? ["siswa", "guru"] : ["siswa"];
+    const nama = h("input.kontrol#daftar-nama", { autocomplete: "name", required: true, maxlength: 100 });
+    const user = h("input.kontrol#daftar-user", { autocomplete: "username", required: true, autocapitalize: "none", spellcheck: "false",
+      minlength: 3, maxlength: 30, pattern: "[A-Za-z0-9._]{3,30}", title: "3–30 karakter: huruf, angka, titik, atau garis bawah" });
+    const sandi = h("input.kontrol#daftar-sandi", { type: "password", autocomplete: "new-password", required: true, minlength: 6 });
+    const ulang = h("input.kontrol#daftar-ulang", { type: "password", autocomplete: "new-password", required: true });
+    const kelas = h("select.kontrol#daftar-kelas", {},
+      h("option", { value: "" }, "Pilih kelas"),
+      info.kelas.map((k) => h("option", { value: k.kelas_id }, k.nama_kelas)));
+    const kode = h("input.kontrol#daftar-kode", { autocomplete: "off", autocapitalize: "none", spellcheck: "false" });
+    const isianKelas = h("div.isian", h("label", { for: "daftar-kelas" }, "Kelas"), kelas);
+    const isianKode = h("div.isian", h("label", { for: "daftar-kode" }, "Kode guru"), kode,
+      h("small", { style: { color: "var(--redup)" } }, "Minta kode ini kepada admin sekolah."));
+    const galat = h("p.galat-teks", { role: "alert", hidden: true });
+    const tombol = h("button.tombol.t-teal.t-penuh", { type: "submit", style: { marginTop: "10px" } }, "Daftar");
+
+    const tab = h("div.tab-peran", { role: "group", "aria-label": "Daftar sebagai", style: { gridTemplateColumns: `repeat(${daftarPeran.length}, 1fr)` } },
+      daftarPeran.map((p) => h("button", {
+        type: "button", "data-peran": p, "aria-pressed": String(p === peran),
+        onclick: () => { peran = p; perbarui(); },
+      }, NAMA_PERAN[p])));
+    function perbarui() {
+      tab.querySelectorAll("button").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.peran === peran)));
+      isianKelas.hidden = peran !== "siswa"; kelas.required = peran === "siswa";
+      isianKode.hidden = peran !== "guru"; kode.required = peran === "guru";
+      galat.hidden = true;
+    }
+    perbarui();
+
+    async function kirimDaftar(e) {
+      e.preventDefault();
+      galat.hidden = true;
+      if (sandi.value !== ulang.value) { galat.textContent = "Ulangi kata sandi belum sama."; galat.hidden = false; ulang.focus(); return; }
+      tombol.disabled = true; tombol.textContent = "Mendaftarkan…";
+      try {
+        const data = await post("/api/auth/daftar", {
+          nama: nama.value.trim(), username: user.value.trim(), password: sandi.value, role: peran,
+          kelas_id: peran === "siswa" ? Number(kelas.value) || null : null,
+          kodeGuru: peran === "guru" ? kode.value.trim() : undefined,
+        });
+        lokal.simpan("evalsmk.peranTerakhir", data.user.role);
+        simpanSesi(data.token, data.user);
+        global.UI.toast("Akun berhasil dibuat. Selamat datang!");
+        pergi(data.user.role + "/" + MENU[data.user.role][0][0]);
+      } catch (err) {
+        galat.textContent = err.message; galat.hidden = false;
+        tombol.disabled = false; tombol.textContent = "Daftar";
+      }
+    }
+
+    const balik = h("p.login-ganti", "Sudah punya akun? ", h("button", { type: "button", onclick: kembali }, "Masuk"));
+    if (!info.buka) {
+      return h("div.login-form", h("h2", "Daftar akun"),
+        h("p.sub", "Pendaftaran akun sedang ditutup. Hubungi admin sekolah untuk dibuatkan akun."), balik);
+    }
+    setTimeout(() => nama.focus(), 0);
+    return h("form.login-form", { onsubmit: kirimDaftar },
+      h("h2", "Daftar akun"),
+      h("p.sub", info.guruBisa ? "Pilih peran lalu isi data akunmu." : "Buat akun siswa untuk mengikuti evaluasi."),
+      tab,
+      h("div.isian", h("label", { for: "daftar-nama" }, "Nama lengkap"), nama),
+      h("div.isian", h("label", { for: "daftar-user" }, "Username"), user,
+        h("small", { style: { color: "var(--redup)" } }, "3–30 karakter: huruf, angka, titik, atau garis bawah. Dipakai untuk masuk.")),
+      h("div.isian", h("label", { for: "daftar-sandi" }, "Kata sandi"), sandi,
+        h("small", { style: { color: "var(--redup)" } }, "Minimal 6 karakter.")),
+      h("div.isian", h("label", { for: "daftar-ulang" }, "Ulangi kata sandi"), ulang),
+      isianKelas, isianKode,
+      galat, tombol, balik);
   }
 
   // ------------------------------------------------------------------ ubah kata sandi
@@ -166,7 +251,10 @@
         href: `#/${peran}/${k}`, "aria-current": k === menuAktif ? "page" : null,
         onclick: () => app.classList.remove("menu-buka"),
       }, label))),
-      h("div.sidebar-kaki", h("small", "Masuk sebagai"), h("b", NAMA_PERAN[peran])));
+      h("div.sidebar-kaki",
+        h("div", h("small", "Masuk sebagai"), h("b", NAMA_PERAN[peran])),
+        h("button.tombol-keluar", { type: "button", onclick: keluar, title: "Keluar dari akun" },
+          "Keluar")));
     const tombolMenu = h("button.tombol-menu", { type: "button", "aria-label": "Buka menu", onclick: (e) => { e.stopPropagation(); app.classList.toggle("menu-buka"); } },
       h("span", { "aria-hidden": "true" }, "☰"));
     app.addEventListener("click", (e) => { if (app.classList.contains("menu-buka") && !sidebar.contains(e.target)) app.classList.remove("menu-buka"); });

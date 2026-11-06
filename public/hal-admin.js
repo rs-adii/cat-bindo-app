@@ -265,6 +265,19 @@
         },
       }, isian("Nama sekolah", namaSekolah), isian("Tahun ajaran", tahunAjaran), tombolProfil);
 
+      // Kode guru: wajib diisi calon guru saat daftar sendiri. Kosong = guru tidak bisa daftar sendiri.
+      const kodeGuru = masukan({ value: p.kode_guru || "", maxlength: 50, placeholder: "mis. GURU2026", autocomplete: "off" });
+      const tombolKode = h("button.tombol.t-teal", { type: "submit" }, "Simpan");
+      const formKode = h("form", {
+        style: { marginTop: "10px" },
+        onsubmit: async (e) => {
+          e.preventDefault();
+          tombolKode.disabled = true;
+          await simpan({ kode_guru: kodeGuru.value.trim() }, kodeGuru.value.trim() ? "Kode guru disimpan." : "Kode guru dikosongkan: guru tidak bisa daftar sendiri.");
+          tombolKode.disabled = false;
+        },
+      }, isian("Kode guru untuk daftar", kodeGuru, "Kosongkan agar hanya siswa yang bisa daftar sendiri."), tombolKode);
+
       kosongkan(isi, h("div.grid.g-3x.isi-penuh",
         kartu("Profil sekolah", null, formProfil),
         kartu("Aturan tes adaptif (CAT)", null,
@@ -277,6 +290,8 @@
           barisCentang("acak_opsi", "Acak urutan pilihan jawaban", "Opsi A–D diacak untuk tiap siswa"),
           barisCentang("kuesioner_anonim", "Kuesioner anonim", "Nama siswa tidak ditampilkan ke guru"),
           barisCentang("tampilkan_nilai", "Tampilkan nilai langsung", "Siswa melihat nilai setelah tes selesai"),
+          barisCentang("izinkan_daftar", "Izinkan daftar akun", "Tombol Daftar akun muncul di halaman login"),
+          formKode,
           h("button.tombol.t-oranye", { style: { marginTop: "18px" }, onclick: () => window.Shell.ubahSandi() }, "Ubah kata sandi"))));
     },
   });

@@ -3,6 +3,12 @@
   functions = "netlify/functions"
   command = "npm install"
 
+# Fungsi terjadwal: mengirim satu kueri kecil ke Supabase setiap 3 hari
+# (pukul 03.00 UTC = 10.00 WIB, tanggal 1, 4, 7, ..., 31) agar project
+# Supabase paket gratis tidak di-pause karena tidak aktif 7 hari.
+[functions."jaga-supabase"]
+  schedule = "0 3 */3 * *"
+
 # Rute dengan parameter path (:id, :tesId, :sesiId) dipetakan lebih dulu
 # (urutan penting — Netlify mencocokkan dari atas ke bawah).
 
@@ -120,6 +126,11 @@
 [[redirects]]
   from = "/api/auth/login"
   to = "/.netlify/functions/auth-login"
+  status = 200
+
+[[redirects]]
+  from = "/api/auth/daftar"
+  to = "/.netlify/functions/auth-daftar"
   status = 200
 
 [[redirects]]

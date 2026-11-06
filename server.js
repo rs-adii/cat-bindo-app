@@ -8,6 +8,7 @@ const cat = require("./lib/catEngineLevel");
 const timer = require("./lib/timer");
 const soalImport = require("./lib/soalImport");
 const pengaturanLib = require("./lib/pengaturan");
+const daftarLib = require("./lib/daftar");
 const acakOpsi = require("./lib/acakOpsi");
 const tanggal = require("./lib/tanggal");
 const ringkasan = require("./lib/ringkasan");
@@ -73,6 +74,29 @@ app.post("/api/auth/login", (req, res) => {
   });
 });
 
+// Pendaftaran akun mandiri (tanpa login). Info: status buka/tutup + daftar kelas.
+app.get("/api/auth/daftar", (req, res) => {
+  j(res, 200, daftarLib.infoDaftar(ambilPengaturan(), db.prepare("SELECT kelas_id, nama_kelas FROM kelas ORDER BY nama_kelas").all()));
+});
+app.post("/api/auth/daftar", async (req, res, next) => {
+  try {
+    const cek = await daftarLib.periksaDaftar(req.body, ambilPengaturan(),
+      (id) => !!db.prepare("SELECT 1 FROM kelas WHERE kelas_id = ?").get(id));
+    if (cek.error) return j(res, cek.status, { error: cek.error });
+    const d = cek.data;
+    let info;
+    try {
+      info = db.prepare("INSERT INTO users (nama, username, password_hash, role, kelas_id, aktif) VALUES (?,?,?,?,?,1)")
+        .run(d.nama, d.username, auth.hashPassword(d.password), d.role, d.kelas_id);
+    } catch (e) {
+      if (galatUnik(e)) return j(res, 409, { error: "Username sudah dipakai. Coba username lain." });
+      throw e;
+    }
+    const user = db.prepare("SELECT * FROM users WHERE users_id = ?").get(info.lastInsertRowid);
+    j(res, 200, { token: auth.issueToken(user), user: { users_id: user.users_id, nama: user.nama, role: user.role, kelas_id: user.kelas_id } });
+  } catch (e) { next(e); }
+});
+
 app.post("/api/auth/logout", auth.requireAuth, (req, res) => {
   auth.revokeToken((req.headers.authorization || "").slice(7));
   j(res, 200, { ok: true });
@@ -93,7 +117,7 @@ app.post("/api/auth/ubah-sandi", login, (req, res) => {
 
 // ============================== PENGATURAN ==============================
 // Semua peran boleh membaca (guru butuh bawaan jumlah soal/durasi, siswa butuh nama sekolah).
-app.get("/api/pengaturan", login, (req, res) => j(res, 200, ambilPengaturan()));
+app.get("/api/pengaturan", login, (req, res) => j(res, 200, daftarLib.saringPengaturan(ambilPengaturan(), req.user.role)));
 
 app.put("/api/pengaturan", peran("admin"), (req, res) => {
   const { data, error } = pengaturanLib.validasi(req.body);

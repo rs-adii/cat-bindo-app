@@ -285,6 +285,48 @@ async function jalankan(A, label) {
   r = await api("DELETE", `/api/admin/users/${r.body.users_id}`, null, tAdmin);
   cek(r.status === 200, "hapus akun yang belum punya data", r);
 
+  // ---------------------------------------------------------------- 15. Daftar akun mandiri
+  r = await api("GET", "/api/auth/daftar", null, null);
+  cek(r.status === 200 && r.body.buka === true && r.body.guruBisa === false && r.body.kelas.length >= 1 && !("kode_guru" in r.body),
+    "info daftar tanpa login: buka, guru belum bisa, ada kelas", r);
+  const daftarSiswa = { nama: "Rina Daftar", username: "rina.daftar", password: "rahasia1", role: "siswa", kelas_id: kelas1.kelas_id };
+  r = await api("POST", "/api/auth/daftar", daftarSiswa, null);
+  cek(r.status === 200 && r.body.token && r.body.user.role === "siswa" && Number(r.body.user.kelas_id) === Number(kelas1.kelas_id), "siswa daftar sendiri -> langsung login", r);
+  r = await api("GET", "/api/siswa/tes-tersedia", null, r.body.token);
+  cek(r.status === 200 && Array.isArray(r.body), "akun hasil daftar bisa membuka tes", r);
+  r = await api("POST", "/api/auth/login", { username: "rina.daftar", password: "rahasia1", role: "siswa" });
+  cek(r.status === 200, "akun hasil daftar bisa login", r);
+  r = await api("POST", "/api/auth/daftar", daftarSiswa, null);
+  cek(r.status === 409, "daftar username yang sudah ada -> 409", r);
+  r = await api("POST", "/api/auth/daftar", { ...daftarSiswa, username: "tanpakelas", kelas_id: null }, null);
+  cek(r.status === 400, "siswa daftar tanpa kelas -> 400", r);
+  r = await api("POST", "/api/auth/daftar", { ...daftarSiswa, username: "ada spasi" }, null);
+  cek(r.status === 400, "username tidak valid -> 400", r);
+  r = await api("POST", "/api/auth/daftar", { ...daftarSiswa, username: "calonadmin", role: "admin" }, null);
+  cek(r.status === 400, "daftar sebagai admin ditolak", r);
+  const daftarGuru = { nama: "Pak Daftar", username: "pak.daftar", password: "rahasia1", role: "guru", kodeGuru: "GURU2026" };
+  r = await api("POST", "/api/auth/daftar", daftarGuru, null);
+  cek(r.status === 403, "guru daftar saat kode guru kosong -> 403", r);
+  await api("PUT", "/api/pengaturan", { kode_guru: "GURU2026" }, tAdmin);
+  r = await api("GET", "/api/pengaturan", null, tS2);
+  cek(r.status === 200 && !("kode_guru" in r.body), "kode guru tidak terlihat oleh siswa", r);
+  r = await api("GET", "/api/pengaturan", null, tGuru);
+  cek(r.status === 200 && !("kode_guru" in r.body), "kode guru tidak terlihat oleh guru", r);
+  r = await api("GET", "/api/pengaturan", null, tAdmin);
+  cek(r.body.kode_guru === "GURU2026", "admin melihat kode guru", r);
+  r = await api("POST", "/api/auth/daftar", { ...daftarGuru, kodeGuru: "salah" }, null);
+  cek(r.status === 403, "guru daftar dengan kode salah -> 403", r);
+  r = await api("POST", "/api/auth/daftar", daftarGuru, null);
+  cek(r.status === 200 && r.body.user.role === "guru" && r.body.user.kelas_id === null, "guru daftar dengan kode benar", r);
+  r = await api("GET", "/api/guru/soal", null, r.body.token);
+  cek(r.status === 200, "akun guru hasil daftar bisa membuka bank soal", r);
+  await api("PUT", "/api/pengaturan", { izinkan_daftar: false }, tAdmin);
+  r = await api("GET", "/api/auth/daftar", null, null);
+  cek(r.body.buka === false && r.body.kelas.length === 0, "pendaftaran ditutup: info tertutup", r);
+  r = await api("POST", "/api/auth/daftar", { ...daftarSiswa, username: "telat" }, null);
+  cek(r.status === 403, "pendaftaran ditutup -> 403", r);
+  await api("PUT", "/api/pengaturan", { izinkan_daftar: true, kode_guru: "" }, tAdmin);
+
   console.log(`${label}: ${lulus} pemeriksaan lulus, ${gagal.length} gagal`);
   return gagal.length === 0;
 }
