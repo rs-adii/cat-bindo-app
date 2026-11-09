@@ -412,3 +412,15 @@ select.kontrol {
   .donat > div { width: 130px; height: 130px; }
 }
 @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+
+
+/* ============================== LOGO (gambar) ==============================
+   Teks "EvalSMK" dan kotak "E" lama disembunyikan; gantinya logo gambar.
+   Teks tetap ada di HTML supaya terbaca pembaca layar. */
+.merek { font-size: 0 !important; gap: 0 !important; }
+.merek-ikon { display: none !important; }
+.merek::before {
+  content: ""; display: block; width: 250px; height: 56px;
+  background: url("/img/logo-evalsmk.png") left center / contain no-repeat;
+}
+.sidebar .merek::before { width: 200px; height: 45px; }
