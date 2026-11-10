@@ -296,7 +296,9 @@
             h("div", h("h3", r.kuesioner.sudahDiisi ? "Terima kasih atas feedbackmu" : "Bagikan pengalamanmu"),
               h("p", { style: { margin: "4px 0 0", color: "var(--redup)" } }, r.kuesioner.sudahDiisi ? "Kuesioner untuk tes ini sudah kamu isi." : "Isi kuesioner feedback tentang pembelajaran.")),
             r.kuesioner.sudahDiisi ? null : h("button.tombol.t-oranye", { onclick: () => pergi(`siswa/kuesioner/${r.tes_id}`) }, "Isi kuesioner"))
-        : null;
+        : h("section.kartu",
+            h("h3", "Kuesioner belum tersedia"),
+            h("p", { style: { margin: "4px 0 0", color: "var(--redup)" } }, "Guru belum menyiapkan kuesioner feedback untuk tes ini."));
 
       const rincian = r.perLevel
         ? h("div.batang-daftar", [1, 2, 3].map((lv) => {

@@ -310,7 +310,7 @@
         catch (err) { galat.textContent = err.message; galat.hidden = false; tombol.disabled = false; }
       }
       async function buang(t) {
-        if (!(await konfirmasi("Hapus jadwal tes?", `"${t.judul}" akan dihapus. Tes yang sudah dikerjakan siswa atau punya kuesioner tidak dapat dihapus.`))) return;
+        if (!(await konfirmasi("Hapus jadwal tes?", `"${t.judul}" akan dihapus. Kuesionernya ikut terhapus. Tes yang sudah dikerjakan siswa tidak dapat dihapus.`))) return;
         try { await hapus(`/api/guru/tes/${t.tes_id}`); toast("Jadwal dihapus."); ctx.muatUlang(); }
         catch (e) { toast(e.message, "galat"); }
       }
